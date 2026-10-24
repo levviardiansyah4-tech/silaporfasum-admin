@@ -6,7 +6,13 @@ const dateText=s=>{if(!s)return "-";try{return new Date(s).toLocaleString("id-ID
 const dateOnly=s=>{if(!s)return "-";try{return new Date(s+"T00:00:00").toLocaleDateString("id-ID",{dateStyle:"medium"})}catch{return "-"}};
 const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 
-const sb=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY);
+/* ---------- Koneksi Supabase (dengan pengecekan konfigurasi) ---------- */
+const CONFIG_OK=!!(window.supabase&&window.SUPABASE_URL&&window.SUPABASE_ANON_KEY
+  &&!/XXXX|ISI_ANON/.test(String(window.SUPABASE_URL)+String(window.SUPABASE_ANON_KEY)));
+let sb=null;
+try{ if(CONFIG_OK) sb=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY); }
+catch(err){ console.error("createClient gagal:",err); }
+
 let reports=[],petugas=[],activeView="dashboard";
 
 /* Pemetaan kolom tabel `laporan` -> field yang dipakai tampilan.
@@ -30,27 +36,50 @@ function toast(msg,type){let t=$("toast");if(!t){t=document.createElement("div")
   t.textContent=msg;t.className="toast show "+(type||"");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.className="toast",3800)}
 
 /* ---------- Auth ---------- */
+function loginErrorText(err){
+  const m=String(err?.message||err||"").toLowerCase();
+  if(m.includes("invalid login credentials"))return "Email atau password salah, atau akun belum dibuat di Supabase (Authentication → Users).";
+  if(m.includes("email not confirmed"))return "Email belum dikonfirmasi. Di Supabase: Authentication → Users → titik tiga → Confirm user.";
+  if(m.includes("failed to fetch")||m.includes("networkerror")||m.includes("load failed"))return "Tidak bisa terhubung ke Supabase. Cek SUPABASE_URL di supabase-config.js (bentuk: https://xxxx.supabase.co).";
+  if(m.includes("invalid api key")||m.includes("apikey"))return "API key salah. Cek SUPABASE_ANON_KEY di supabase-config.js (pakai anon public key).";
+  return "Gagal masuk: "+(err?.message||err);
+}
 $("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
-  const btn=$("loginBtn");btn.disabled=true;$("loginMessage").textContent="";
-  const {data,error}=await sb.auth.signInWithPassword({email:$("username").value.trim(),password:$("password").value});
-  btn.disabled=false;
-  if(error){$("loginMessage").textContent="Email atau password belum sesuai.";return}
-  showApp(data.session);
+  const msg=$("loginMessage"),btn=$("loginBtn");
+  msg.textContent="";
+  if(!sb){
+    msg.textContent=window.supabase
+      ?"Konfigurasi Supabase belum diisi. Edit supabase-config.js (SUPABASE_URL dan SUPABASE_ANON_KEY)."
+      :"Library Supabase gagal dimuat. Periksa koneksi internet atau index.html versi terbaru.";
+    return;
+  }
+  btn.disabled=true;
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:$("username").value.trim(),password:$("password").value});
+    if(error){console.error("Login error:",error);msg.textContent=loginErrorText(error);return}
+    showApp(data.session);
+  }catch(err){
+    console.error("Login exception:",err);msg.textContent=loginErrorText(err);
+  }finally{btn.disabled=false}
 });
 async function showApp(session){
   $("loginScreen").hidden=true;$("appScreen").hidden=false;
   $("adminEmail").textContent=session?.user?.email||"Pengelola sistem";
   await loadData();
 }
-async function logout(){await sb.auth.signOut();$("appScreen").hidden=true;$("loginScreen").hidden=false;$("password").value="";reports=[];petugas=[]}
+async function logout(){
+  if(sb)await sb.auth.signOut();
+  $("appScreen").hidden=true;$("loginScreen").hidden=false;$("password").value="";reports=[];petugas=[];
+}
 
 /* ---------- Data ---------- */
 async function loadData(){
+  if(!sb)return;
   $("reportsTable").innerHTML='<div class="empty">Memuat data...</div>';
   const [r,p]=await Promise.all([sb.from("laporan").select("*"),sb.from("petugas").select("*").order("nama")]);
-  if(r.error){toast("Gagal memuat laporan: "+r.error.message,"error")}
-  if(p.error){toast("Gagal memuat petugas: "+p.error.message,"error")}
+  if(r.error){console.error(r.error);toast("Gagal memuat laporan: "+r.error.message,"error")}
+  if(p.error){console.error(p.error);toast("Gagal memuat petugas: "+p.error.message,"error")}
   reports=(r.data||[]).map(normalize).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   petugas=p.data||[];
   renderAll();
@@ -140,7 +169,7 @@ function openDetail(id){
     const btn=$("saveAssign");btn.disabled=true;
     const {data,error}=await sb.from("laporan").update({status:$("detailStatus").value,petugas_id:pid,tanggal_penugasan:mulai,tanggal_target:target,catatan_penugasan:catatan}).eq("id",r.id).select();
     btn.disabled=false;
-    if(error){toast("Gagal menyimpan: "+error.message,"error");return}
+    if(error){console.error(error);toast("Gagal menyimpan: "+error.message,"error");return}
     if(!data||!data.length){toast("Tidak ada data yang berubah. Cek policy RLS UPDATE pada tabel laporan.","error");return}
     $("detailModal").hidden=true;await loadData();toast("Laporan diperbarui.");
   });
@@ -163,7 +192,7 @@ $("petugasForm").addEventListener("submit",async e=>{
   const btn=$("petugasSaveBtn");btn.disabled=true;
   const {data,error}=await(id?sb.from("petugas").update(row).eq("id",id).select():sb.from("petugas").insert(row).select());
   btn.disabled=false;
-  if(error||!data||!data.length){toast("Gagal menyimpan petugas"+(error?": "+error.message:". Cek policy RLS."),"error");return}
+  if(error||!data||!data.length){if(error)console.error(error);toast("Gagal menyimpan petugas"+(error?": "+error.message:". Cek policy RLS."),"error");return}
   $("petugasModal").hidden=true;await loadData();toast("Petugas disimpan.");
 });
 async function togglePetugas(id){
@@ -171,7 +200,7 @@ async function togglePetugas(id){
   const n=activeTaskCount(id);
   if(p.aktif&&n&&!confirm(`${p.nama} masih menangani ${n} laporan yang belum selesai. Tetap nonaktifkan?`))return;
   const {data,error}=await sb.from("petugas").update({aktif:!p.aktif}).eq("id",id).select();
-  if(error||!data||!data.length){toast("Gagal mengubah status petugas.","error");return}
+  if(error||!data||!data.length){if(error)console.error(error);toast("Gagal mengubah status petugas.","error");return}
   await loadData();toast(p.aktif?"Petugas dinonaktifkan.":"Petugas diaktifkan.");
 }
 
@@ -190,5 +219,8 @@ $("refreshBtn").addEventListener("click",loadData);
 $("addPetugasBtn").addEventListener("click",()=>openPetugasForm());
 ["searchInput","statusFilter","categoryFilter","petugasFilter"].forEach(id=>$(id).addEventListener("input",renderReports));
 $("petugasSearch").addEventListener("input",renderPetugas);
-sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"){$("appScreen").hidden=true;$("loginScreen").hidden=false}});
-(async()=>{const {data}=await sb.auth.getSession();if(data.session)showApp(data.session)})();
+
+if(sb){
+  sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"){$("appScreen").hidden=true;$("loginScreen").hidden=false}});
+  (async()=>{const {data}=await sb.auth.getSession();if(data.session)showApp(data.session)})();
+}
