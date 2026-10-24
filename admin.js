@@ -1,12 +1,11 @@
+
 /* =====================================================
    SiLaporFasum - Admin JavaScript
-   Supabase project configuration
+   Supabase Configuration
 ===================================================== */
-
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
-
 
 let supabaseClient = null;
 let laporanData = [];
@@ -32,8 +31,9 @@ function escapeHTML(value) {
 
 function showToast(message, type = "success") {
   const toast = $("toast");
+
   if (!toast) {
-    alert(message);
+    console.log(message);
     return;
   }
 
@@ -67,22 +67,32 @@ function formatDate(value) {
 
 function getField(row, fields, fallback = "-") {
   for (const field of fields) {
-    if (row && row[field] !== undefined && row[field] !== null &&
-        row[field] !== "") {
+    if (
+      row &&
+      row[field] !== undefined &&
+      row[field] !== null &&
+      row[field] !== ""
+    ) {
       return row[field];
     }
   }
+
   return fallback;
 }
 
 function getStatus(row) {
-  return getField(row, ["status", "status_laporan", "status_lap"], "Laporan Dikirim");
+  return getField(
+    row,
+    ["status", "status_laporan", "status_lap"],
+    "Laporan Dikirim"
+  );
 }
 
 function getNamaPelapor(row) {
-  return getField(row, [
-    "nama_pelapor", "nama", "nama_pengguna", "pelapor"
-  ]);
+  return getField(
+    row,
+    ["nama_pelapor", "nama", "nama_pengguna", "pelapor"]
+  );
 }
 
 function getKategori(row) {
@@ -94,7 +104,10 @@ function getLokasi(row) {
 }
 
 function getDeskripsi(row) {
-  return getField(row, ["deskripsi", "isi_laporan", "keterangan", "detail"]);
+  return getField(
+    row,
+    ["deskripsi", "isi_laporan", "keterangan", "detail"]
+  );
 }
 
 function getTanggal(row) {
@@ -128,35 +141,36 @@ function renderEmpty(message) {
 }
 
 /* =====================================================
-   INITIALIZATION
+   INISIALISASI SUPABASE
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", initializeAdmin);
 
 async function initializeAdmin() {
-  if (
-    !SUPABASE_URL ||
-    !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(SUPABASE_URL)
-  ) {
+  const url = SUPABASE_URL.trim();
+  const key = SUPABASE_ANON_KEY.trim();
+
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) {
     showLoginMessage(
-      "SUPABASE_URL belum benar. Gunakan Project URL asli tanpa /rest/v1/."
+      "Project URL tidak valid. Gunakan URL tanpa /rest/v1/."
     );
-    console.error("SUPABASE_URL tidak valid:", SUPABASE_URL);
+    console.error("Project URL tidak valid:", url);
     return;
   }
 
   if (
-    !SUPABASE_ANON_KEY ||
-    SUPABASE_ANON_KEY === "ISI_PUBLISHABLE_KEY_KAMU"
+    !key ||
+    key === "ISI_PUBLISHABLE_KEY_KAMU" ||
+    key.includes("GANTI_DENGAN")
   ) {
     showLoginMessage(
-      "Publishable key Supabase belum diisi di admin.js."
+      "Publishable key belum diisi. Periksa konfigurasi admin.js."
     );
-    console.error("Publishable key belum dikonfigurasi.");
+    console.error("Publishable key kosong atau belum diganti.");
     return;
   }
 
-  if (!window.supabase || !window.supabase.createClient) {
+  if (!window.supabase?.createClient) {
     showLoginMessage(
       "Library Supabase belum termuat. Periksa script di index.html."
     );
@@ -165,10 +179,7 @@ async function initializeAdmin() {
   }
 
   try {
-    supabaseClient = window.supabase.createClient(
-      SUPABASE_URL,
-      SUPABASE_ANON_KEY
-    );
+    supabaseClient = window.supabase.createClient(url, key);
 
     bindEvents();
 
@@ -189,16 +200,18 @@ async function initializeAdmin() {
         showLoginScreen();
       }
     });
+
+    console.log("Supabase client berhasil dibuat.");
   } catch (error) {
     console.error("Inisialisasi Supabase gagal:", error);
     showLoginMessage(
-      "Gagal memulai koneksi Supabase. Periksa URL dan publishable key."
+      `Inisialisasi Supabase gagal: ${error.message}`
     );
   }
 }
 
 /* =====================================================
-   LOGIN / LOGOUT
+   EVENT LISTENER
 ===================================================== */
 
 function bindEvents() {
@@ -247,9 +260,18 @@ function bindEvents() {
   $("modalBody")?.addEventListener("submit", handleModalSubmit);
 }
 
+/* =====================================================
+   LOGIN DAN LOGOUT
+===================================================== */
+
 async function handleLogin(event) {
   event.preventDefault();
   showLoginMessage("");
+
+  if (!supabaseClient) {
+    showLoginMessage("Koneksi Supabase belum siap. Muat ulang halaman.");
+    return;
+  }
 
   const email = $("username")?.value.trim();
   const password = $("password")?.value;
@@ -260,6 +282,7 @@ async function handleLogin(event) {
   }
 
   const button = $("loginBtn");
+
   if (button) {
     button.disabled = true;
     button.textContent = "Memproses...";
@@ -291,15 +314,16 @@ async function handleLogin(event) {
 async function handleLogout() {
   if (!supabaseClient) return;
 
-  const { error } = await supabaseClient.auth.signOut();
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
 
-  if (error) {
+    currentUser = null;
+    showLoginScreen();
+  } catch (error) {
     console.error("Logout gagal:", error);
-    showToast(error.message, "error");
-    return;
+    showToast(`Logout gagal: ${error.message}`, "error");
   }
-
-  showLoginScreen();
 }
 
 function showLoginScreen() {
@@ -319,7 +343,7 @@ async function showApplication() {
 }
 
 /* =====================================================
-   NAVIGATION
+   NAVIGASI
 ===================================================== */
 
 function showView(viewName) {
@@ -341,39 +365,47 @@ function showView(viewName) {
     guide: "Panduan Admin"
   };
 
-  if ($("pageTitle")) $("pageTitle").textContent = titles[viewName] || "Admin";
-  if ($("crumb")) $("crumb").textContent = (viewName || "").toUpperCase();
+  if ($("pageTitle")) {
+    $("pageTitle").textContent = titles[viewName] || "Admin";
+  }
+
+  if ($("crumb")) {
+    $("crumb").textContent = (viewName || "").toUpperCase();
+  }
 }
 
 /* =====================================================
-   LOAD DATA SUPABASE
+   MEMUAT DATA DARI SUPABASE
 ===================================================== */
 
 async function loadData() {
   if (!supabaseClient) return;
 
-  if ($("refreshBtn")) {
-    $("refreshBtn").disabled = true;
-    $("refreshBtn").textContent = "Memuat...";
+  const button = $("refreshBtn");
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Memuat...";
   }
 
   try {
     const [laporanResult, petugasResult] = await Promise.all([
-      supabaseClient.from("laporan").select("*").order("created_at", {
-        ascending: false
-      }),
-      supabaseClient.from("petugas").select("*").order("id", {
-        ascending: false
-      })
+      supabaseClient
+        .from("laporan")
+        .select("*")
+        .order("created_at", { ascending: false }),
+
+      supabaseClient
+        .from("petugas")
+        .select("*")
+        .order("id", { ascending: false })
     ]);
 
     if (laporanResult.error) {
-      console.error("Gagal mengambil tabel laporan:", laporanResult.error);
       throw new Error(`Tabel laporan: ${laporanResult.error.message}`);
     }
 
     if (petugasResult.error) {
-      console.error("Gagal mengambil tabel petugas:", petugasResult.error);
       throw new Error(`Tabel petugas: ${petugasResult.error.message}`);
     }
 
@@ -384,16 +416,20 @@ async function loadData() {
     renderReports();
     renderPetugas();
     renderPetugasFilter();
+
+    console.log("Data laporan:", laporanData.length);
+    console.log("Data petugas:", petugasData.length);
   } catch (error) {
     console.error("Gagal memuat data:", error);
+
     showToast(
       `${error.message}. Periksa nama tabel, kolom, dan kebijakan RLS.`,
       "error"
     );
   } finally {
-    if ($("refreshBtn")) {
-      $("refreshBtn").disabled = false;
-      $("refreshBtn").textContent = "↻ Muat ulang";
+    if (button) {
+      button.disabled = false;
+      button.textContent = "↻ Muat ulang";
     }
   }
 }
@@ -404,6 +440,7 @@ async function loadData() {
 
 function renderDashboard() {
   const total = laporanData.length;
+
   const verify = laporanData.filter((row) =>
     String(getStatus(row)).toLowerCase().includes("verifikasi")
   ).length;
@@ -591,11 +628,7 @@ function openDetail(id) {
     `;
   }).join("");
 
-  const imageUrl = getField(
-    row,
-    ["foto_url", "url_foto", "foto", "gambar"],
-    ""
-  );
+  const imageUrl = getField(row, ["foto_url", "url_foto", "foto", "gambar"], "");
 
   $("modalBody").innerHTML = `
     <div class="detail-grid">
@@ -632,11 +665,9 @@ function openDetail(id) {
       ${imageUrl && /^https?:\/\//i.test(String(imageUrl)) ? `
         <div class="detail-item detail-full">
           <small>Foto laporan</small>
-          <img
-            src="${escapeHTML(imageUrl)}"
+          <img src="${escapeHTML(imageUrl)}"
             alt="Foto laporan"
-            style="max-width:100%;height:auto;border-radius:10px"
-          >
+            style="max-width:100%;height:auto;border-radius:10px">
         </div>
       ` : ""}
 
@@ -723,10 +754,7 @@ async function handleModalSubmit(event) {
   } else if ("status_lap" in original) {
     updateData.status_lap = status;
   } else {
-    showToast(
-      "Kolom status tidak ditemukan di tabel laporan. Periksa nama kolom database.",
-      "error"
-    );
+    showToast("Kolom status tidak ditemukan di tabel laporan.", "error");
     return;
   }
 
@@ -743,8 +771,8 @@ async function handleModalSubmit(event) {
   }
 
   const idColumn = "id" in original ? "id" : "laporan_id";
-
   const submitButton = form.querySelector("button[type='submit']");
+
   if (submitButton) {
     submitButton.disabled = true;
     submitButton.textContent = "Menyimpan...";
@@ -773,12 +801,12 @@ async function handleModalSubmit(event) {
   }
 }
 
-async function handleModalClick(event) {
+function handleModalClick(event) {
   const closeButton = event.target.closest("[data-close]");
-  if (closeButton) {
-    const modal = closeButton.closest(".modal");
-    if (modal) modal.hidden = true;
-  }
+  if (!closeButton) return;
+
+  const modal = closeButton.closest(".modal");
+  if (modal) modal.hidden = true;
 }
 
 /* =====================================================
@@ -875,7 +903,8 @@ function handlePetugasTableClick(event) {
   if (!button) return;
 
   const row = petugasData.find(
-    (item) => String(getField(item, ["id", "petugas_id"], "")) ===
+    (item) =>
+      String(getField(item, ["id", "petugas_id"], "")) ===
       String(button.dataset.id)
   );
 
@@ -943,7 +972,8 @@ async function savePetugas(event) {
 
   const existing = id
     ? petugasData.find(
-        (row) => String(getField(row, ["id", "petugas_id"], "")) === String(id)
+        (row) =>
+          String(getField(row, ["id", "petugas_id"], "")) === String(id)
       )
     : null;
 
@@ -978,6 +1008,7 @@ async function savePetugas(event) {
   }
 
   const button = $("petugasSaveBtn");
+
   if (button) {
     button.disabled = true;
     button.textContent = "Menyimpan...";
@@ -987,9 +1018,8 @@ async function savePetugas(event) {
     let result;
 
     if (id) {
-      const idColumn = existing && "petugas_id" in existing
-        ? "petugas_id"
-        : "id";
+      const idColumn =
+        existing && "petugas_id" in existing ? "petugas_id" : "id";
 
       result = await supabaseClient
         .from("petugas")
@@ -1005,7 +1035,10 @@ async function savePetugas(event) {
 
     if ($("petugasModal")) $("petugasModal").hidden = true;
 
-    showToast(id ? "Data petugas diperbarui." : "Petugas berhasil ditambahkan.");
+    showToast(
+      id ? "Data petugas diperbarui." : "Petugas berhasil ditambahkan."
+    );
+
     await loadData();
   } catch (error) {
     console.error("Simpan petugas gagal:", error);
