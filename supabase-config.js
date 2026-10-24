@@ -1,2 +1,2 @@
-   window.SUPABASE_URL = "https://KODE-ASLI-KAMU.supabase.co";
-   window.SUPABASE_ANON_KEY = "eyJ...key-asli-yang-panjang-sekali...";
+   window.SUPABASE_URL = "TEMPEL-PROJECT-URL-DI-SINI";
+   window.SUPABASE_ANON_KEY = "TEMPEL-ANON-KEY-DI-SINI";
