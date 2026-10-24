@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="id">
 <head>
@@ -9,9 +8,7 @@
   <link rel="stylesheet" href="admin.css">
   <link rel="stylesheet" href="admin-petugas.css">
 </head>
-
 <body>
-
   <!-- LOGIN ADMIN -->
   <section id="loginScreen" class="login-screen">
     <form id="loginForm" class="login-card">
@@ -59,10 +56,7 @@
 
   <!-- APLIKASI ADMIN -->
   <div id="appScreen" class="app-shell" hidden>
-
-    <!-- SIDEBAR -->
     <aside class="sidebar">
-
       <a class="brand" href="#">
         <span class="brand-logo">SF</span>
         <span>
@@ -112,12 +106,9 @@
           ↪
         </button>
       </div>
-
     </aside>
 
-    <!-- KONTEN UTAMA -->
     <main class="main-area">
-
       <header class="topbar">
         <div>
           <p class="eyebrow">
@@ -141,14 +132,13 @@
 
       <!-- DASHBOARD -->
       <section id="dashboardView" class="view">
-
         <div class="welcome">
           <div>
             <p class="welcome-tag">RINGKASAN SISTEM</p>
             <h1>Halo, Admin! 👋</h1>
             <p>
-              Pantau dan tindak lanjuti laporan fasilitas umum
-              dari masyarakat.
+              Pantau, verifikasi, dan kelola laporan fasilitas umum
+              dengan tampilan dashboard yang lebih informatif.
             </p>
           </div>
 
@@ -156,8 +146,7 @@
         </div>
 
         <div class="stat-grid">
-
-          <article class="stat-card">
+          <article class="stat-card accent-blue">
             <div class="stat-top">
               <span>Total Laporan</span>
               <span class="stat-icon blue">▤</span>
@@ -166,7 +155,7 @@
             <small>Semua laporan masuk</small>
           </article>
 
-          <article class="stat-card">
+          <article class="stat-card accent-amber">
             <div class="stat-top">
               <span>Menunggu Verifikasi</span>
               <span class="stat-icon amber">◷</span>
@@ -175,7 +164,7 @@
             <small>Perlu diperiksa admin</small>
           </article>
 
-          <article class="stat-card">
+          <article class="stat-card accent-purple">
             <div class="stat-top">
               <span>Sedang Diproses</span>
               <span class="stat-icon purple">⚙</span>
@@ -184,7 +173,7 @@
             <small>Dalam penanganan</small>
           </article>
 
-          <article class="stat-card">
+          <article class="stat-card accent-green">
             <div class="stat-top">
               <span>Selesai</span>
               <span class="stat-icon green">✓</span>
@@ -192,11 +181,33 @@
             <strong id="doneStat">0</strong>
             <small>Laporan dituntaskan</small>
           </article>
+        </div>
 
+        <div class="analytics-grid">
+          <section class="card chart-card">
+            <div class="card-heading">
+              <div>
+                <h3>Distribusi Status</h3>
+                <p>Persebaran status semua laporan</p>
+              </div>
+            </div>
+
+            <div id="statusChart" class="chart-area"></div>
+          </section>
+
+          <section class="card chart-card">
+            <div class="card-heading">
+              <div>
+                <h3>Tren Laporan 6 Bulan</h3>
+                <p>Jumlah laporan berdasarkan bulan masuk</p>
+              </div>
+            </div>
+
+            <div id="trendChart" class="chart-area"></div>
+          </section>
         </div>
 
         <div class="content-grid">
-
           <section class="card recent-card">
             <div class="card-heading">
               <div>
@@ -222,15 +233,12 @@
 
             <div id="categorySummary" class="category-summary"></div>
           </section>
-
         </div>
       </section>
 
       <!-- DATA LAPORAN -->
       <section id="reportsView" class="view" hidden>
-
         <div class="toolbar">
-
           <div class="searchbox">
             <span>⌕</span>
             <input
@@ -264,7 +272,56 @@
           <button id="refreshBtn" class="btn secondary" type="button">
             ↻ Muat ulang
           </button>
+        </div>
 
+        <div class="mini-stat-grid">
+          <article class="mini-stat-card">
+            <span class="mini-label">Laporan Ditampilkan</span>
+            <strong id="reportVisibleCount">0</strong>
+            <small>Sesuai filter aktif</small>
+          </article>
+
+          <article class="mini-stat-card">
+            <span class="mini-label">Sudah Ditugaskan</span>
+            <strong id="reportAssignedCount">0</strong>
+            <small>Memiliki petugas</small>
+          </article>
+
+          <article class="mini-stat-card">
+            <span class="mini-label">Belum Ditugaskan</span>
+            <strong id="reportUnassignedCount">0</strong>
+            <small>Masih menunggu penugasan</small>
+          </article>
+
+          <article class="mini-stat-card">
+            <span class="mini-label">Selesai</span>
+            <strong id="reportDoneCount">0</strong>
+            <small>Laporan tuntas</small>
+          </article>
+        </div>
+
+        <div class="analytics-grid reports-grid">
+          <section class="card chart-card">
+            <div class="card-heading">
+              <div>
+                <h3>Distribusi Status Data</h3>
+                <p>Berdasarkan hasil filter pada tabel</p>
+              </div>
+            </div>
+
+            <div id="reportStatusChart" class="chart-area"></div>
+          </section>
+
+          <section class="card chart-card">
+            <div class="card-heading">
+              <div>
+                <h3>Komposisi Kategori</h3>
+                <p>Kategori terbanyak dari data yang sedang ditampilkan</p>
+              </div>
+            </div>
+
+            <div id="reportCategoryChart" class="category-summary"></div>
+          </section>
         </div>
 
         <section class="card">
@@ -281,12 +338,10 @@
 
           <div id="reportsTable" class="table-wrap"></div>
         </section>
-
       </section>
 
       <!-- DATA PETUGAS -->
       <section id="petugasView" class="view" hidden>
-
         <div class="toolbar">
           <div class="searchbox">
             <span>⌕</span>
@@ -300,6 +355,26 @@
           <button id="addPetugasBtn" class="btn primary" type="button">
             + Tambah Petugas
           </button>
+        </div>
+
+        <div class="mini-stat-grid petugas-mini-grid">
+          <article class="mini-stat-card">
+            <span class="mini-label">Total Petugas</span>
+            <strong id="petugasTotalStat">0</strong>
+            <small>Semua data petugas</small>
+          </article>
+
+          <article class="mini-stat-card">
+            <span class="mini-label">Petugas Aktif</span>
+            <strong id="petugasActiveStat">0</strong>
+            <small>Dapat menerima tugas</small>
+          </article>
+
+          <article class="mini-stat-card">
+            <span class="mini-label">Petugas Nonaktif</span>
+            <strong id="petugasInactiveStat">0</strong>
+            <small>Tidak menerima tugas</small>
+          </article>
         </div>
 
         <section class="card">
@@ -316,12 +391,10 @@
 
           <div id="petugasTable" class="table-wrap"></div>
         </section>
-
       </section>
 
       <!-- PANDUAN ADMIN -->
       <section id="guideView" class="view" hidden>
-
         <section class="card guide">
           <p class="eyebrow">PANDUAN SINGKAT</p>
           <h2>Alur kerja admin</h2>
@@ -368,21 +441,16 @@
               </p>
             </div>
           </div>
-
         </section>
-
       </section>
-
     </main>
   </div>
 
   <!-- MODAL DETAIL LAPORAN -->
   <div id="detailModal" class="modal" hidden>
-
     <div class="modal-backdrop" data-close></div>
 
     <section class="modal-card">
-
       <div class="modal-header">
         <div>
           <p class="eyebrow">DETAIL LAPORAN</p>
@@ -400,17 +468,14 @@
       </div>
 
       <div id="modalBody"></div>
-
     </section>
   </div>
 
   <!-- MODAL TAMBAH / EDIT PETUGAS -->
   <div id="petugasModal" class="modal" hidden>
-
     <div class="modal-backdrop" data-close></div>
 
     <section class="modal-card narrow">
-
       <div class="modal-header">
         <div>
           <p class="eyebrow">DATA PETUGAS</p>
@@ -428,11 +493,9 @@
       </div>
 
       <form id="petugasForm">
-
         <input type="hidden" id="petugasId">
 
         <div class="form-grid">
-
           <label class="field detail-full">
             Nama petugas
             <input
@@ -462,11 +525,9 @@
             <input type="checkbox" id="petugasAktif" checked>
             Petugas aktif
           </label>
-
         </div>
 
         <div class="detail-actions">
-
           <button class="btn secondary" type="button" data-close>
             Batal
           </button>
@@ -478,22 +539,18 @@
           >
             Simpan
           </button>
-
         </div>
-
       </form>
-
     </section>
   </div>
 
   <!-- NOTIFIKASI -->
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <!-- LIBRARY SUPABASE -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- JAVASCRIPT ADMIN -->
   <script src="admin.js"></script>
-
 </body>
 </html>

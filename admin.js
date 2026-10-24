@@ -1,4 +1,3 @@
-
 /* =====================================================
    SiLaporFasum - Admin JavaScript
    Supabase + Dashboard + Laporan + Petugas
@@ -20,6 +19,13 @@ let loadingData = false;
 
 const $ = (id) => document.getElementById(id);
 
+const STATUS_META = {
+  "Laporan Dikirim": { color: "#d97706", soft: "#fff3df", key: "pending" },
+  "Diverifikasi": { color: "#7c3aed", soft: "#f3eaff", key: "verify" },
+  "Sedang Diproses": { color: "#285fe8", soft: "#eaf0ff", key: "process" },
+  "Selesai Diperbaiki": { color: "#159255", soft: "#e6f8ef", key: "done" }
+};
+
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -39,11 +45,12 @@ function showToast(message, type = "success") {
   }
 
   toast.textContent = message;
-  toast.className = `toast ${type}`;
+  toast.className = `toast show ${type}`;
   toast.hidden = false;
 
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => {
+    toast.className = `toast ${type}`;
     toast.hidden = true;
   }, 4000);
 }
@@ -131,6 +138,184 @@ function renderEmpty(message) {
   return `<div class="empty-state">${escapeHTML(message)}</div>`;
 }
 
+function getStatusMetrics(rows = []) {
+  const metrics = {
+    total: rows.length,
+    sent: 0,
+    verify: 0,
+    process: 0,
+    done: 0
+  };
+
+  rows.forEach((row) => {
+    const status = getStatus(row);
+
+    if (status === "Diverifikasi") {
+      metrics.verify += 1;
+    } else if (status === "Sedang Diproses") {
+      metrics.process += 1;
+    } else if (status === "Selesai Diperbaiki") {
+      metrics.done += 1;
+    } else {
+      metrics.sent += 1;
+    }
+  });
+
+  return metrics;
+}
+
+function countAssignedReports(rows = []) {
+  return rows.filter((row) => String(getPetugasId(row) || "").trim() !== "").length;
+}
+
+function countByCategory(rows = []) {
+  const categories = {};
+
+  rows.forEach((row) => {
+    const category = String(getKategori(row));
+    categories[category] = (categories[category] || 0) + 1;
+  });
+
+  return Object.entries(categories)
+    .filter(([label]) => label && label !== "-")
+    .sort((a, b) => b[1] - a[1]);
+}
+
+function buildMonthlyTrend(rows = [], totalMonths = 6) {
+  const now = new Date();
+  const points = [];
+
+  for (let i = totalMonths - 1; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    points.push({
+      key: `${date.getFullYear()}-${date.getMonth()}`,
+      label: date.toLocaleDateString("id-ID", { month: "short" }),
+      year: date.getFullYear(),
+      month: date.getMonth(),
+      count: 0
+    });
+  }
+
+  rows.forEach((row) => {
+    const date = new Date(getTanggal(row));
+    if (Number.isNaN(date.getTime())) return;
+
+    const item = points.find(
+      (point) => point.year === date.getFullYear() && point.month === date.getMonth()
+    );
+
+    if (item) item.count += 1;
+  });
+
+  return points;
+}
+
+function renderDonutChart(elementId, items, centerLabel = "Total") {
+  const element = $(elementId);
+  if (!element) return;
+
+  const filteredItems = items.filter((item) => item.value > 0);
+  const total = items.reduce((sum, item) => sum + item.value, 0);
+
+  if (total === 0) {
+    element.innerHTML = renderEmpty("Belum ada data untuk ditampilkan.");
+    return;
+  }
+
+  let cursor = 0;
+  const gradientParts = filteredItems.map((item) => {
+    const start = cursor;
+    const size = (item.value / total) * 100;
+    cursor += size;
+    return `${item.color} ${start}% ${cursor}%`;
+  });
+
+  const gradient = gradientParts.length
+    ? `conic-gradient(${gradientParts.join(", ")})`
+    : "#edf2f8";
+
+  element.innerHTML = `
+    <div class="donut-layout">
+      <div class="donut-chart" style="--chart-fill:${gradient}">
+        <div class="donut-hole">
+          <strong>${total}</strong>
+          <small>${escapeHTML(centerLabel)}</small>
+        </div>
+      </div>
+
+      <div class="chart-legend">
+        ${items.map((item) => `
+          <div class="legend-item">
+            <span class="legend-dot" style="background:${item.color}"></span>
+            <div class="legend-text">
+              <b>${escapeHTML(item.label)}</b>
+              <small>${item.value} data</small>
+            </div>
+            <span class="legend-value">${item.value}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function renderTrendChart(elementId, points) {
+  const element = $(elementId);
+  if (!element) return;
+
+  if (!points.length) {
+    element.innerHTML = renderEmpty("Belum ada data tren laporan.");
+    return;
+  }
+
+  const maxValue = Math.max(...points.map((item) => item.count), 1);
+
+  element.innerHTML = `
+    <div class="trend-chart">
+      ${points.map((item) => {
+        const height = Math.max(18, Math.round((item.count / maxValue) * 170));
+        return `
+          <div class="trend-bar-wrap">
+            <span class="trend-count">${item.count}</span>
+            <div class="trend-bar" style="height:${height}px" title="${escapeHTML(item.label)}: ${item.count} laporan"></div>
+            <span class="trend-label">${escapeHTML(item.label)}</span>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function renderCategoryBars(elementId, categoryEntries, emptyMessage = "Belum ada data kategori.") {
+  const element = $(elementId);
+  if (!element) return;
+
+  if (!categoryEntries.length) {
+    element.innerHTML = renderEmpty(emptyMessage);
+    return;
+  }
+
+  const maxCount = Math.max(...categoryEntries.map(([, count]) => count), 1);
+
+  element.innerHTML = categoryEntries.map(([category, count]) => {
+    const width = Math.max(8, Math.round((count / maxCount) * 100));
+    return `
+      <div class="category-row">
+        <div class="category-main">
+          <div class="category-head">
+            <span>${escapeHTML(category)}</span>
+            <small>${count} laporan</small>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill" style="width:${width}%"></div>
+          </div>
+        </div>
+        <strong>${count}</strong>
+      </div>
+    `;
+  }).join("");
+}
+
 /* =====================================================
    INISIALISASI
 ===================================================== */
@@ -190,9 +375,7 @@ async function initializeAdmin() {
     console.log("Supabase client berhasil dibuat.");
   } catch (error) {
     console.error("Inisialisasi Supabase gagal:", error);
-    showLoginMessage(
-      `Inisialisasi Supabase gagal: ${error.message}`
-    );
+    showLoginMessage(`Inisialisasi Supabase gagal: ${error.message}`);
   }
 }
 
@@ -366,7 +549,6 @@ function showView(viewName) {
 
 /* =====================================================
    MEMUAT DATA
-   Laporan dan petugas dimuat secara terpisah.
 ===================================================== */
 
 async function loadData() {
@@ -386,7 +568,6 @@ async function loadData() {
   }
 
   try {
-    // 1. Muat laporan terlebih dahulu.
     const laporanResult = await supabaseClient
       .from("laporan")
       .select("*")
@@ -403,19 +584,13 @@ async function loadData() {
     renderDashboard();
     renderReports();
 
-    console.log("Jumlah laporan:", laporanData.length);
-
-    // 2. Muat petugas secara terpisah.
     const petugasResult = await supabaseClient
       .from("petugas")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (petugasResult.error) {
-      console.error(
-        "Gagal memuat tabel petugas:",
-        petugasResult.error
-      );
+      console.error("Gagal memuat tabel petugas:", petugasResult.error);
 
       petugasData = [];
 
@@ -438,11 +613,7 @@ async function loadData() {
     renderPetugas();
     renderPetugasFilter();
 
-    console.log("Jumlah petugas:", petugasData.length);
-
-    showToast(
-      `Data berhasil dimuat. Total laporan: ${laporanData.length}.`
-    );
+    showToast(`Data berhasil dimuat. Total laporan: ${laporanData.length}.`);
   } catch (error) {
     console.error("Gagal memuat data:", error);
     showToast(error.message, "error");
@@ -461,25 +632,13 @@ async function loadData() {
 ===================================================== */
 
 function renderDashboard() {
-  const total = laporanData.length;
+  const metrics = getStatusMetrics(laporanData);
 
-  const verify = laporanData.filter((row) =>
-    getStatus(row).toLowerCase().includes("verifikasi")
-  ).length;
-
-  const process = laporanData.filter((row) =>
-    getStatus(row).toLowerCase().includes("proses")
-  ).length;
-
-  const done = laporanData.filter((row) =>
-    getStatus(row).toLowerCase().includes("selesai")
-  ).length;
-
-  if ($("totalStat")) $("totalStat").textContent = total;
-  if ($("verifyStat")) $("verifyStat").textContent = verify;
-  if ($("processStat")) $("processStat").textContent = process;
-  if ($("doneStat")) $("doneStat").textContent = done;
-  if ($("sideCount")) $("sideCount").textContent = total;
+  if ($("totalStat")) $("totalStat").textContent = metrics.total;
+  if ($("verifyStat")) $("verifyStat").textContent = metrics.verify;
+  if ($("processStat")) $("processStat").textContent = metrics.process;
+  if ($("doneStat")) $("doneStat").textContent = metrics.done;
+  if ($("sideCount")) $("sideCount").textContent = metrics.total;
   if ($("sidePetugas")) $("sidePetugas").textContent = petugasData.length;
 
   const recent = laporanData.slice(0, 5);
@@ -517,25 +676,15 @@ function renderDashboard() {
       : renderEmpty("Belum ada laporan.");
   }
 
-  const categories = {};
+  renderDonutChart("statusChart", [
+    { label: "Laporan Dikirim", value: metrics.sent, color: STATUS_META["Laporan Dikirim"].color },
+    { label: "Diverifikasi", value: metrics.verify, color: STATUS_META["Diverifikasi"].color },
+    { label: "Sedang Diproses", value: metrics.process, color: STATUS_META["Sedang Diproses"].color },
+    { label: "Selesai Diperbaiki", value: metrics.done, color: STATUS_META["Selesai Diperbaiki"].color }
+  ], "Total Laporan");
 
-  laporanData.forEach((row) => {
-    const category = String(getKategori(row));
-    categories[category] = (categories[category] || 0) + 1;
-  });
-
-  if ($("categorySummary")) {
-    const entries = Object.entries(categories);
-
-    $("categorySummary").innerHTML = entries.length
-      ? entries.map(([category, count]) => `
-          <div class="category-row">
-            <span>${escapeHTML(category)}</span>
-            <strong>${count}</strong>
-          </div>
-        `).join("")
-      : renderEmpty("Belum ada data kategori.");
-  }
+  renderTrendChart("trendChart", buildMonthlyTrend(laporanData));
+  renderCategoryBars("categorySummary", countByCategory(laporanData));
 }
 
 /* =====================================================
@@ -569,6 +718,28 @@ function renderReports() {
   if ($("resultCount")) {
     $("resultCount").textContent = `${filtered.length} laporan`;
   }
+
+  const metrics = getStatusMetrics(filtered);
+  const assignedCount = countAssignedReports(filtered);
+  const unassignedCount = filtered.length - assignedCount;
+
+  if ($("reportVisibleCount")) $("reportVisibleCount").textContent = filtered.length;
+  if ($("reportAssignedCount")) $("reportAssignedCount").textContent = assignedCount;
+  if ($("reportUnassignedCount")) $("reportUnassignedCount").textContent = unassignedCount;
+  if ($("reportDoneCount")) $("reportDoneCount").textContent = metrics.done;
+
+  renderDonutChart("reportStatusChart", [
+    { label: "Laporan Dikirim", value: metrics.sent, color: STATUS_META["Laporan Dikirim"].color },
+    { label: "Diverifikasi", value: metrics.verify, color: STATUS_META["Diverifikasi"].color },
+    { label: "Sedang Diproses", value: metrics.process, color: STATUS_META["Sedang Diproses"].color },
+    { label: "Selesai Diperbaiki", value: metrics.done, color: STATUS_META["Selesai Diperbaiki"].color }
+  ], "Hasil Filter");
+
+  renderCategoryBars(
+    "reportCategoryChart",
+    countByCategory(filtered),
+    "Tidak ada kategori pada hasil pencarian."
+  );
 
   if (!$("reportsTable")) return;
 
@@ -695,7 +866,7 @@ function openDetail(id) {
           </a>
           <img src="${escapeHTML(imageUrl)}"
             alt="Foto laporan"
-            style="max-width:100%;height:auto;border-radius:10px">
+            style="max-width:100%;height:auto;border-radius:12px;margin-top:10px">
         </div>
       ` : ""}
 
@@ -863,6 +1034,13 @@ function renderPetugas() {
   if ($("sidePetugas")) {
     $("sidePetugas").textContent = petugasData.length;
   }
+
+  const activeCount = petugasData.filter((row) => row.aktif === true).length;
+  const inactiveCount = petugasData.length - activeCount;
+
+  if ($("petugasTotalStat")) $("petugasTotalStat").textContent = petugasData.length;
+  if ($("petugasActiveStat")) $("petugasActiveStat").textContent = activeCount;
+  if ($("petugasInactiveStat")) $("petugasInactiveStat").textContent = inactiveCount;
 
   if (!$("petugasTable")) return;
 
