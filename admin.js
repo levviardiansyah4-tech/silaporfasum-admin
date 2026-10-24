@@ -5,7 +5,7 @@
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 
-// Ganti "ISI_PUBLISHABLE_KEY_KAMU" dengan anon key asli dari project Supabase Anda
+// Ganti "ISI_PUBLISHABLE_KEY_KAMU" dengan anon key asli dari project Supabase Anda[cite: 1]
 const SUPABASE_ANON_KEY = "ISI_PUBLISHABLE_KEY_KAMU";
 
 let supabaseClient = null;
@@ -134,7 +134,6 @@ function renderEmpty(message) {
 document.addEventListener("DOMContentLoaded", initializeAdmin);
 
 async function initializeAdmin() {
-  // Validasi URL sebelum membuat koneksi.
   if (
     !SUPABASE_URL ||
     !/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(SUPABASE_URL)
@@ -204,7 +203,6 @@ async function initializeAdmin() {
 
 function bindEvents() {
   $("loginForm")?.addEventListener("submit", handleLogin);
-
   $("logoutBtn")?.addEventListener("click", handleLogout);
 
   document.querySelectorAll("[data-view]").forEach((button) => {
@@ -371,16 +369,12 @@ async function loadData() {
 
     if (laporanResult.error) {
       console.error("Gagal mengambil tabel laporan:", laporanResult.error);
-      throw new Error(
-        `Tabel laporan: ${laporanResult.error.message}`
-      );
+      throw new Error(`Tabel laporan: ${laporanResult.error.message}`);
     }
 
     if (petugasResult.error) {
       console.error("Gagal mengambil tabel petugas:", petugasResult.error);
-      throw new Error(
-        `Tabel petugas: ${petugasResult.error.message}`
-      );
+      throw new Error(`Tabel petugas: ${petugasResult.error.message}`);
     }
 
     laporanData = laporanResult.data || [];
