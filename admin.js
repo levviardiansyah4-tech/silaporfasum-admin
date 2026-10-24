@@ -1,4 +1,3 @@
-
 /* =====================================================
    SiLaporFasum - Admin JavaScript
    Supabase project configuration
@@ -6,7 +5,7 @@
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 
-// Isi dengan publishable key dari project Supabase yang sama.
+// Ganti "ISI_PUBLISHABLE_KEY_KAMU" dengan anon key asli dari project Supabase Anda
 const SUPABASE_ANON_KEY = "ISI_PUBLISHABLE_KEY_KAMU";
 
 let supabaseClient = null;
@@ -721,7 +720,6 @@ async function handleModalSubmit(event) {
     return;
   }
 
-  // Kolom dasar yang diasumsikan tersedia di tabel laporan.
   const updateData = {};
 
   if ("status" in original) {
