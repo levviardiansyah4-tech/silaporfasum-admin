@@ -1,85 +1,499 @@
+
 <!doctype html>
 <html lang="id">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin SiLaporFasum</title>
-<link rel="stylesheet" href="admin.css">
-<link rel="stylesheet" href="admin-petugas.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin SiLaporFasum</title>
+
+  <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="admin-petugas.css">
 </head>
+
 <body>
-<section id="loginScreen" class="login-screen">
-  <form id="loginForm" class="login-card">
-    <div class="logo">SF</div><p class="eyebrow">PANEL ADMINISTRATOR</p>
-    <h1>Selamat datang</h1><p class="muted">Masuk untuk mengelola laporan fasilitas umum.</p>
-    <label>Email<input id="username" type="email" autocomplete="username" required placeholder="Masukkan email admin"></label>
-    <label>Password<input id="password" type="password" autocomplete="current-password" required placeholder="Masukkan password"></label>
-    <button id="loginBtn" class="btn primary full" type="submit">Masuk ke Dashboard →</button>
-    <p id="loginMessage" class="error" role="status"></p>
-  </form>
-</section>
-<div id="appScreen" class="app-shell" hidden>
-  <aside class="sidebar">
-    <a class="brand" href="#"><span class="brand-logo">SF</span><span>SiLaporFasum<small>Admin Panel</small></span></a>
-    <div class="side-label">MENU UTAMA</div>
-    <button class="side-link active" data-view="dashboard"><span>▦</span> Dashboard</button>
-    <button class="side-link" data-view="reports"><span>▤</span> Data Laporan <span class="side-count" id="sideCount">0</span></button>
-    <button class="side-link" data-view="petugas"><span>☻</span> Petugas <span class="side-count" id="sidePetugas">0</span></button>
-    <div class="side-label">LAINNYA</div>
-    <button class="side-link" data-view="guide"><span>ⓘ</span> Panduan Admin</button>
-    <div class="sidebar-bottom"><div class="admin-avatar">A</div><div class="admin-info"><b>Administrator</b><small id="adminEmail">Pengelola sistem</small></div><button id="logoutBtn" class="logout" title="Keluar">↪</button></div>
-  </aside>
-  <main class="main-area">
-    <header class="topbar"><div><p class="eyebrow">ADMINISTRATOR / <span id="crumb">DASHBOARD</span></p><h2 id="pageTitle">Dashboard</h2></div><div class="top-actions"><span class="online"><i></i> Terhubung</span><button class="avatar-btn" title="Administrator">A</button></div></header>
 
-    <section id="dashboardView" class="view">
-      <div class="welcome"><div><p class="welcome-tag">RINGKASAN SISTEM</p><h1>Halo, Admin! 👋</h1><p>Pantau dan tindak lanjuti laporan fasilitas umum dari masyarakat.</p></div><div class="welcome-mark">SF</div></div>
-      <div class="stat-grid">
-        <article class="stat-card"><div class="stat-top"><span>Total Laporan</span><span class="stat-icon blue">▤</span></div><strong id="totalStat">0</strong><small>Semua laporan masuk</small></article>
-        <article class="stat-card"><div class="stat-top"><span>Menunggu Verifikasi</span><span class="stat-icon amber">◷</span></div><strong id="verifyStat">0</strong><small>Perlu diperiksa admin</small></article>
-        <article class="stat-card"><div class="stat-top"><span>Sedang Diproses</span><span class="stat-icon purple">⚙</span></div><strong id="processStat">0</strong><small>Dalam penanganan</small></article>
-        <article class="stat-card"><div class="stat-top"><span>Selesai</span><span class="stat-icon green">✓</span></div><strong id="doneStat">0</strong><small>Laporan dituntaskan</small></article>
+  <!-- LOGIN ADMIN -->
+  <section id="loginScreen" class="login-screen">
+    <form id="loginForm" class="login-card">
+      <div class="logo">SF</div>
+      <p class="eyebrow">PANEL ADMINISTRATOR</p>
+
+      <h1>Selamat datang</h1>
+      <p class="muted">
+        Masuk untuk mengelola laporan fasilitas umum.
+      </p>
+
+      <label>
+        Email
+        <input
+          id="username"
+          type="email"
+          autocomplete="username"
+          required
+          placeholder="Masukkan email admin"
+        >
+      </label>
+
+      <label>
+        Password
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          required
+          placeholder="Masukkan password"
+        >
+      </label>
+
+      <button
+        id="loginBtn"
+        class="btn primary full"
+        type="submit"
+      >
+        Masuk ke Dashboard →
+      </button>
+
+      <p id="loginMessage" class="error" role="status"></p>
+    </form>
+  </section>
+
+  <!-- APLIKASI ADMIN -->
+  <div id="appScreen" class="app-shell" hidden>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <a class="brand" href="#">
+        <span class="brand-logo">SF</span>
+        <span>
+          SiLaporFasum
+          <small>Admin Panel</small>
+        </span>
+      </a>
+
+      <div class="side-label">MENU UTAMA</div>
+
+      <button class="side-link active" data-view="dashboard">
+        <span>▦</span> Dashboard
+      </button>
+
+      <button class="side-link" data-view="reports">
+        <span>▤</span>
+        Data Laporan
+        <span class="side-count" id="sideCount">0</span>
+      </button>
+
+      <button class="side-link" data-view="petugas">
+        <span>☻</span>
+        Petugas
+        <span class="side-count" id="sidePetugas">0</span>
+      </button>
+
+      <div class="side-label">LAINNYA</div>
+
+      <button class="side-link" data-view="guide">
+        <span>ⓘ</span> Panduan Admin
+      </button>
+
+      <div class="sidebar-bottom">
+        <div class="admin-avatar">A</div>
+
+        <div class="admin-info">
+          <b>Administrator</b>
+          <small id="adminEmail">Pengelola sistem</small>
+        </div>
+
+        <button
+          id="logoutBtn"
+          class="logout"
+          type="button"
+          title="Keluar"
+        >
+          ↪
+        </button>
       </div>
-      <div class="content-grid"><section class="card recent-card"><div class="card-heading"><div><h3>Laporan Terbaru</h3><p>Laporan yang terakhir dikirim masyarakat</p></div><button class="text-button" data-goto="reports">Lihat semua →</button></div><div id="recentTable" class="table-wrap"></div></section>
-      <section class="card category-card"><div class="card-heading"><div><h3>Kategori Laporan</h3><p>Ringkasan berdasarkan kategori</p></div></div><div id="categorySummary" class="category-summary"></div></section></div>
+
+    </aside>
+
+    <!-- KONTEN UTAMA -->
+    <main class="main-area">
+
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">
+            ADMINISTRATOR /
+            <span id="crumb">DASHBOARD</span>
+          </p>
+
+          <h2 id="pageTitle">Dashboard</h2>
+        </div>
+
+        <div class="top-actions">
+          <span class="online">
+            <i></i> Terhubung
+          </span>
+
+          <button class="avatar-btn" type="button" title="Administrator">
+            A
+          </button>
+        </div>
+      </header>
+
+      <!-- DASHBOARD -->
+      <section id="dashboardView" class="view">
+
+        <div class="welcome">
+          <div>
+            <p class="welcome-tag">RINGKASAN SISTEM</p>
+            <h1>Halo, Admin! 👋</h1>
+            <p>
+              Pantau dan tindak lanjuti laporan fasilitas umum
+              dari masyarakat.
+            </p>
+          </div>
+
+          <div class="welcome-mark">SF</div>
+        </div>
+
+        <div class="stat-grid">
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Total Laporan</span>
+              <span class="stat-icon blue">▤</span>
+            </div>
+            <strong id="totalStat">0</strong>
+            <small>Semua laporan masuk</small>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Menunggu Verifikasi</span>
+              <span class="stat-icon amber">◷</span>
+            </div>
+            <strong id="verifyStat">0</strong>
+            <small>Perlu diperiksa admin</small>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Sedang Diproses</span>
+              <span class="stat-icon purple">⚙</span>
+            </div>
+            <strong id="processStat">0</strong>
+            <small>Dalam penanganan</small>
+          </article>
+
+          <article class="stat-card">
+            <div class="stat-top">
+              <span>Selesai</span>
+              <span class="stat-icon green">✓</span>
+            </div>
+            <strong id="doneStat">0</strong>
+            <small>Laporan dituntaskan</small>
+          </article>
+
+        </div>
+
+        <div class="content-grid">
+
+          <section class="card recent-card">
+            <div class="card-heading">
+              <div>
+                <h3>Laporan Terbaru</h3>
+                <p>Laporan yang terakhir dikirim masyarakat</p>
+              </div>
+
+              <button class="text-button" data-goto="reports" type="button">
+                Lihat semua →
+              </button>
+            </div>
+
+            <div id="recentTable" class="table-wrap"></div>
+          </section>
+
+          <section class="card category-card">
+            <div class="card-heading">
+              <div>
+                <h3>Kategori Laporan</h3>
+                <p>Ringkasan berdasarkan kategori</p>
+              </div>
+            </div>
+
+            <div id="categorySummary" class="category-summary"></div>
+          </section>
+
+        </div>
+      </section>
+
+      <!-- DATA LAPORAN -->
+      <section id="reportsView" class="view" hidden>
+
+        <div class="toolbar">
+
+          <div class="searchbox">
+            <span>⌕</span>
+            <input
+              id="searchInput"
+              type="search"
+              placeholder="Cari nomor, nama, lokasi, kategori, petugas..."
+            >
+          </div>
+
+          <select id="statusFilter">
+            <option value="">Semua status</option>
+            <option>Laporan Dikirim</option>
+            <option>Diverifikasi</option>
+            <option>Sedang Diproses</option>
+            <option>Selesai Diperbaiki</option>
+          </select>
+
+          <select id="categoryFilter">
+            <option value="">Semua kategori</option>
+            <option>Jalan Raya</option>
+            <option>Lampu Jalan</option>
+            <option>Taman</option>
+            <option>Drainase / Saluran Air</option>
+            <option>Fasilitas Umum Lainnya</option>
+          </select>
+
+          <select id="petugasFilter">
+            <option value="">Semua petugas</option>
+          </select>
+
+          <button id="refreshBtn" class="btn secondary" type="button">
+            ↻ Muat ulang
+          </button>
+
+        </div>
+
+        <section class="card">
+          <div class="card-heading">
+            <div>
+              <h3>Semua Laporan</h3>
+              <p id="resultCount">0 laporan</p>
+            </div>
+
+            <span class="table-note">
+              Pilih laporan untuk melihat detail dan menugaskan petugas
+            </span>
+          </div>
+
+          <div id="reportsTable" class="table-wrap"></div>
+        </section>
+
+      </section>
+
+      <!-- DATA PETUGAS -->
+      <section id="petugasView" class="view" hidden>
+
+        <div class="toolbar">
+          <div class="searchbox">
+            <span>⌕</span>
+            <input
+              id="petugasSearch"
+              type="search"
+              placeholder="Cari nama, kontak, keahlian..."
+            >
+          </div>
+
+          <button id="addPetugasBtn" class="btn primary" type="button">
+            + Tambah Petugas
+          </button>
+        </div>
+
+        <section class="card">
+          <div class="card-heading">
+            <div>
+              <h3>Daftar Petugas</h3>
+              <p id="petugasCount">0 petugas</p>
+            </div>
+
+            <span class="table-note">
+              Petugas yang keluar cukup dinonaktifkan agar riwayat tetap utuh
+            </span>
+          </div>
+
+          <div id="petugasTable" class="table-wrap"></div>
+        </section>
+
+      </section>
+
+      <!-- PANDUAN ADMIN -->
+      <section id="guideView" class="view" hidden>
+
+        <section class="card guide">
+          <p class="eyebrow">PANDUAN SINGKAT</p>
+          <h2>Alur kerja admin</h2>
+
+          <div class="guide-step">
+            <span>01</span>
+            <div>
+              <h3>Periksa laporan masuk</h3>
+              <p>
+                Buka Data Laporan, lalu periksa kategori, lokasi,
+                deskripsi, dan bukti foto yang dikirim.
+              </p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <span>02</span>
+            <div>
+              <h3>Verifikasi laporan</h3>
+              <p>
+                Jika informasi cukup jelas, ubah status menjadi Diverifikasi.
+              </p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <span>03</span>
+            <div>
+              <h3>Tugaskan petugas</h3>
+              <p>
+                Buka Detail laporan, pilih petugas, tanggal penugasan,
+                tanggal target, dan catatan.
+              </p>
+            </div>
+          </div>
+
+          <div class="guide-step">
+            <span>04</span>
+            <div>
+              <h3>Tindak lanjuti</h3>
+              <p>
+                Ubah status menjadi Sedang Diproses ketika laporan ditangani,
+                kemudian Selesai Diperbaiki setelah pekerjaan selesai.
+              </p>
+            </div>
+          </div>
+
+        </section>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL DETAIL LAPORAN -->
+  <div id="detailModal" class="modal" hidden>
+
+    <div class="modal-backdrop" data-close></div>
+
+    <section class="modal-card">
+
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">DETAIL LAPORAN</p>
+          <h2 id="modalTitle">Detail laporan</h2>
+        </div>
+
+        <button
+          class="close-btn"
+          type="button"
+          data-close
+          aria-label="Tutup"
+        >
+          ×
+        </button>
+      </div>
+
+      <div id="modalBody"></div>
+
     </section>
+  </div>
 
-    <section id="reportsView" class="view" hidden>
-      <div class="toolbar"><div class="searchbox"><span>⌕</span><input id="searchInput" placeholder="Cari nomor, nama, lokasi, kategori, petugas..."></div>
-        <select id="statusFilter"><option value="">Semua status</option><option>Laporan Dikirim</option><option>Diverifikasi</option><option>Sedang Diproses</option><option>Selesai Diperbaiki</option></select>
-        <select id="categoryFilter"><option value="">Semua kategori</option><option>Jalan Raya</option><option>Lampu Jalan</option><option>Taman</option><option>Drainase / Saluran Air</option><option>Fasilitas Umum Lainnya</option></select>
-        <select id="petugasFilter"><option value="">Semua petugas</option></select>
-        <button id="refreshBtn" class="btn secondary">↻ Muat ulang</button></div>
-      <section class="card"><div class="card-heading"><div><h3>Semua Laporan</h3><p id="resultCount">0 laporan</p></div><span class="table-note">Pilih laporan untuk melihat detail &amp; menugaskan petugas</span></div><div id="reportsTable" class="table-wrap"></div></section>
+  <!-- MODAL TAMBAH / EDIT PETUGAS -->
+  <div id="petugasModal" class="modal" hidden>
+
+    <div class="modal-backdrop" data-close></div>
+
+    <section class="modal-card narrow">
+
+      <div class="modal-header">
+        <div>
+          <p class="eyebrow">DATA PETUGAS</p>
+          <h2 id="petugasModalTitle">Tambah petugas</h2>
+        </div>
+
+        <button
+          class="close-btn"
+          type="button"
+          data-close
+          aria-label="Tutup"
+        >
+          ×
+        </button>
+      </div>
+
+      <form id="petugasForm">
+
+        <input type="hidden" id="petugasId">
+
+        <div class="form-grid">
+
+          <label class="field detail-full">
+            Nama petugas
+            <input
+              id="petugasNama"
+              required
+              placeholder="Nama lengkap"
+            >
+          </label>
+
+          <label class="field detail-full">
+            Kontak
+            <input
+              id="petugasKontak"
+              placeholder="No. HP / email"
+            >
+          </label>
+
+          <label class="field detail-full">
+            Keahlian
+            <input
+              id="petugasKeahlian"
+              placeholder="Misalnya: Listrik, Jalan, Drainase"
+            >
+          </label>
+
+          <label class="check">
+            <input type="checkbox" id="petugasAktif" checked>
+            Petugas aktif
+          </label>
+
+        </div>
+
+        <div class="detail-actions">
+
+          <button class="btn secondary" type="button" data-close>
+            Batal
+          </button>
+
+          <button
+            id="petugasSaveBtn"
+            class="btn primary"
+            type="submit"
+          >
+            Simpan
+          </button>
+
+        </div>
+
+      </form>
+
     </section>
+  </div>
 
-    <section id="petugasView" class="view" hidden>
-      <div class="toolbar"><div class="searchbox"><span>⌕</span><input id="petugasSearch" placeholder="Cari nama, kontak, keahlian..."></div><button id="addPetugasBtn" class="btn primary">+ Tambah Petugas</button></div>
-      <section class="card"><div class="card-heading"><div><h3>Daftar Petugas</h3><p id="petugasCount">0 petugas</p></div><span class="table-note">Petugas yang keluar cukup dinonaktifkan agar riwayat tetap utuh</span></div><div id="petugasTable" class="table-wrap"></div></section>
-    </section>
+  <!-- NOTIFIKASI -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <section id="guideView" class="view" hidden><section class="card guide"><p class="eyebrow">PANDUAN SINGKAT</p><h2>Alur kerja admin</h2>
-      <div class="guide-step"><span>01</span><div><h3>Periksa laporan masuk</h3><p>Buka Data Laporan, lalu periksa kategori, lokasi, deskripsi, dan bukti foto yang dikirim.</p></div></div>
-      <div class="guide-step"><span>02</span><div><h3>Verifikasi laporan</h3><p>Jika informasi cukup jelas, ubah status menjadi Diverifikasi.</p></div></div>
-      <div class="guide-step"><span>03</span><div><h3>Tugaskan petugas</h3><p>Buka Detail laporan, pilih petugas, tanggal penugasan, tanggal target, dan catatan. Tambah atau nonaktifkan petugas di menu Petugas.</p></div></div>
-      <div class="guide-step"><span>04</span><div><h3>Tindak lanjuti</h3><p>Ubah status menjadi Sedang Diproses ketika laporan ditangani, kemudian Selesai Diperbaiki setelah pekerjaan selesai. Laporan yang lewat tanggal target ditandai Terlambat.</p></div></div>
-    </section></section>
-  </main>
-</div>
+  <!-- LIBRARY SUPABASE -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<div id="detailModal" class="modal" hidden><div class="modal-backdrop" data-close></div><section class="modal-card"><div class="modal-header"><div><p class="eyebrow">DETAIL LAPORAN</p><h2 id="modalTitle">Detail laporan</h2></div><button class="close-btn" data-close aria-label="Tutup">×</button></div><div id="modalBody"></div></section></div>
+  <!-- JAVASCRIPT ADMIN -->
+  <script src="admin.js"></script>
 
-<div id="petugasModal" class="modal" hidden><div class="modal-backdrop" data-close></div><section class="modal-card narrow"><div class="modal-header"><div><p class="eyebrow">DATA PETUGAS</p><h2 id="petugasModalTitle">Tambah petugas</h2></div><button class="close-btn" data-close aria-label="Tutup">×</button></div>
-  <form id="petugasForm"><input type="hidden" id="petugasId">
-    <div class="form-grid">
-      <label class="field detail-full">Nama petugas<input id="petugasNama" required placeholder="Nama lengkap"></label>
-      <label class="field detail-full">Kontak<input id="petugasKontak" placeholder="No. HP / email"></label>
-      <label class="field detail-full">Keahlian<input id="petugasKeahlian" placeholder="mis. Listrik, Jalan, Drainase"></label>
-      <label class="check"><input type="checkbox" id="petugasAktif" checked> Petugas aktif</label>
-    </div>
-    <div class="detail-actions"><button class="btn secondary" type="button" data-close>Batal</button><button id="petugasSaveBtn" class="btn primary" type="submit">Simpan</button></div>
-  </form></section></div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="supabase-config.js"></script>
-<script src="admin.js"></script>
-</body></html>
+</body>
+</html>
