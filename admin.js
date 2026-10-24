@@ -608,6 +608,23 @@ function openDetail(id) {
     showToast("Data laporan tidak ditemukan.", "error");
     return;
   }
+   async function muatLaporan() {
+  const { data, error } = await supabase
+    .from("laporan")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Gagal mengambil laporan:", error.message);
+    alert("Gagal memuat laporan: " + error.message);
+    return;
+  }
+
+  console.log("Data laporan dari Supabase:", data);
+
+  // Periksa data di Console sebelum ditampilkan ke tabel admin.
+  return data;
+}
 
   const row = selectedLaporan;
   const assignedId = String(getPetugasId(row));
