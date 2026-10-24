@@ -8,7 +8,7 @@ const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOff
 
 /* ---------- Koneksi Supabase ---------- */
 /* ISI DUA BARIS INI SAJA. File supabase-config.js tidak dipakai lagi. */
-const SUPABASE_URL = "https://KODEPROJECT.supabase.co";
+const SUPABASE_URL = "https://.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
 
 let sb=null,CONFIG_ERROR="";
