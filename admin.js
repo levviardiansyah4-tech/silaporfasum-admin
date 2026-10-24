@@ -81,45 +81,35 @@ function getField(row, fields, fallback = "-") {
 }
 
 function getStatus(row) {
-  return getField(
-    row,
-    ["status", "status_laporan", "status_lap"],
-    "Laporan Dikirim"
-  );
+  return getField(row, ["status"], "Laporan Dikirim");
 }
 
 function getNamaPelapor(row) {
-  return getField(
-    row,
-    ["nama_pelapor", "nama", "nama_pengguna", "pelapor"]
-  );
+  return getField(row, ["nama"]);
 }
 
 function getKategori(row) {
-  return getField(row, ["kategori", "jenis", "kategori_laporan"]);
+  return getField(row, ["kategori"]);
 }
 
 function getLokasi(row) {
-  return getField(row, ["alamat", "lokasi", "alamat_lokasi"]);
+  return getField(row, ["alamat"]);
 }
 
 function getDeskripsi(row) {
-  return getField(
-    row,
-    ["deskripsi", "isi_laporan", "keterangan", "detail"]
-  );
+  return getField(row, ["deskripsi"]);
 }
 
 function getTanggal(row) {
-  return getField(row, ["created_at", "tanggal", "tanggal_laporan"]);
+  return getField(row, ["created_at"]);
 }
 
 function getLaporanId(row) {
-  return getField(row, ["id", "laporan_id"], "");
+  return getField(row, ["id"], "");
 }
 
 function getPetugasId(row) {
-  return getField(row, ["petugas_id", "id_petugas"], "");
+  return getField(row, ["petugas_id"], "");
 }
 
 function statusClass(status) {
@@ -147,26 +137,8 @@ function renderEmpty(message) {
 document.addEventListener("DOMContentLoaded", initializeAdmin);
 
 async function initializeAdmin() {
-  const url = SUPABASE_URL.trim();
-  const key = SUPABASE_ANON_KEY.trim();
-
-  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) {
-    showLoginMessage(
-      "Project URL tidak valid. Gunakan URL tanpa /rest/v1/."
-    );
-    console.error("Project URL tidak valid:", url);
-    return;
-  }
-
-  if (
-    !key ||
-    key === "ISI_PUBLISHABLE_KEY_KAMU" ||
-    key.includes("GANTI_DENGAN")
-  ) {
-    showLoginMessage(
-      "Publishable key belum diisi. Periksa konfigurasi admin.js."
-    );
-    console.error("Publishable key kosong atau belum diganti.");
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(SUPABASE_URL)) {
+    showLoginMessage("Project URL Supabase tidak valid.");
     return;
   }
 
@@ -179,7 +151,10 @@ async function initializeAdmin() {
   }
 
   try {
-    supabaseClient = window.supabase.createClient(url, key);
+    supabaseClient = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
 
     bindEvents();
 
@@ -195,8 +170,15 @@ async function initializeAdmin() {
     }
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        currentUser = session.user;
+        showApplication();
+      }
+
       if (event === "SIGNED_OUT") {
         currentUser = null;
+        laporanData = [];
+        petugasData = [];
         showLoginScreen();
       }
     });
@@ -204,9 +186,7 @@ async function initializeAdmin() {
     console.log("Supabase client berhasil dibuat.");
   } catch (error) {
     console.error("Inisialisasi Supabase gagal:", error);
-    showLoginMessage(
-      `Inisialisasi Supabase gagal: ${error.message}`
-    );
+    showLoginMessage(`Inisialisasi Supabase gagal: ${error.message}`);
   }
 }
 
@@ -238,11 +218,7 @@ function bindEvents() {
   $("petugasFilter")?.addEventListener("change", renderReports);
 
   $("petugasSearch")?.addEventListener("input", renderPetugas);
-
-  $("addPetugasBtn")?.addEventListener("click", () => {
-    openPetugasForm();
-  });
-
+  $("addPetugasBtn")?.addEventListener("click", () => openPetugasForm());
   $("petugasForm")?.addEventListener("submit", savePetugas);
 
   document.querySelectorAll("[data-close]").forEach((button) => {
@@ -300,9 +276,7 @@ async function handleLogin(event) {
     await showApplication();
   } catch (error) {
     console.error("Login gagal:", error);
-    showLoginMessage(
-      error.message || "Login gagal. Periksa email dan password."
-    );
+    showLoginMessage(error.message || "Login gagal. Periksa email dan password.");
   } finally {
     if (button) {
       button.disabled = false;
@@ -319,6 +293,8 @@ async function handleLogout() {
     if (error) throw error;
 
     currentUser = null;
+    laporanData = [];
+    petugasData = [];
     showLoginScreen();
   } catch (error) {
     console.error("Logout gagal:", error);
@@ -379,7 +355,10 @@ function showView(viewName) {
 ===================================================== */
 
 async function loadData() {
-  if (!supabaseClient) return;
+  if (!supabaseClient) {
+    showToast("Koneksi Supabase belum siap.", "error");
+    return;
+  }
 
   const button = $("refreshBtn");
 
@@ -398,15 +377,19 @@ async function loadData() {
       supabaseClient
         .from("petugas")
         .select("*")
-        .order("id", { ascending: false })
+        .order("created_at", { ascending: false })
     ]);
 
     if (laporanResult.error) {
-      throw new Error(`Tabel laporan: ${laporanResult.error.message}`);
+      throw new Error(
+        `Tabel laporan: ${laporanResult.error.message}`
+      );
     }
 
     if (petugasResult.error) {
-      throw new Error(`Tabel petugas: ${petugasResult.error.message}`);
+      throw new Error(
+        `Tabel petugas: ${petugasResult.error.message}`
+      );
     }
 
     laporanData = laporanResult.data || [];
@@ -417,15 +400,15 @@ async function loadData() {
     renderPetugas();
     renderPetugasFilter();
 
-    console.log("Data laporan:", laporanData.length);
-    console.log("Data petugas:", petugasData.length);
+    console.log("Data laporan dari Supabase:", laporanData);
+    console.log("Jumlah laporan:", laporanData.length);
+    console.log("Data petugas dari Supabase:", petugasData);
+    console.log("Jumlah petugas:", petugasData.length);
+
+    showToast(`Data dimuat. Total laporan: ${laporanData.length}.`);
   } catch (error) {
     console.error("Gagal memuat data:", error);
-
-    showToast(
-      `${error.message}. Periksa nama tabel, kolom, dan kebijakan RLS.`,
-      "error"
-    );
+    showToast(`Gagal memuat data: ${error.message}`, "error");
   } finally {
     if (button) {
       button.disabled = false;
@@ -442,15 +425,15 @@ function renderDashboard() {
   const total = laporanData.length;
 
   const verify = laporanData.filter((row) =>
-    String(getStatus(row)).toLowerCase().includes("verifikasi")
+    getStatus(row).toLowerCase().includes("verifikasi")
   ).length;
 
   const process = laporanData.filter((row) =>
-    String(getStatus(row)).toLowerCase().includes("proses")
+    getStatus(row).toLowerCase().includes("proses")
   ).length;
 
   const done = laporanData.filter((row) =>
-    String(getStatus(row)).toLowerCase().includes("selesai")
+    getStatus(row).toLowerCase().includes("selesai")
   ).length;
 
   if ($("totalStat")) $("totalStat").textContent = total;
@@ -536,13 +519,11 @@ function renderReports() {
       getStatus(row)
     ].join(" ").toLowerCase();
 
-    const petugasId = String(getPetugasId(row));
-
     return (
       (!query || searchable.includes(query)) &&
       (!status || getStatus(row) === status) &&
       (!category || getKategori(row) === category) &&
-      (!assigned || petugasId === assigned)
+      (!assigned || String(getPetugasId(row)) === assigned)
     );
   });
 
@@ -596,7 +577,7 @@ function handleReportTableClick(event) {
 }
 
 /* =====================================================
-   DETAIL DAN UPDATE LAPORAN
+   DETAIL LAPORAN
 ===================================================== */
 
 function openDetail(id) {
@@ -608,50 +589,37 @@ function openDetail(id) {
     showToast("Data laporan tidak ditemukan.", "error");
     return;
   }
-   async function muatLaporan() {
-  const { data, error } = await supabase
-    .from("laporan")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Gagal mengambil laporan:", error.message);
-    alert("Gagal memuat laporan: " + error.message);
-    return;
-  }
-
-  console.log("Data laporan dari Supabase:", data);
-
-  // Periksa data di Console sebelum ditampilkan ke tabel admin.
-  return data;
-}
 
   const row = selectedLaporan;
-  const assignedId = String(getPetugasId(row));
+  const assignedId = String(getPetugasId(row) || "");
 
   if ($("modalTitle")) {
     $("modalTitle").textContent = `Laporan #${getLaporanId(row)}`;
   }
 
-  const petugasOptions = petugasData.map((petugas) => {
-    const idPetugas = getField(petugas, ["id", "petugas_id"], "");
-    const nama = getField(petugas, ["nama", "nama_petugas"], "Petugas");
-
-    return `
-      <option value="${escapeHTML(idPetugas)}"
-        ${String(idPetugas) === assignedId ? "selected" : ""}>
-        ${escapeHTML(nama)}
+  const petugasOptions = petugasData
+    .filter((petugas) => petugas.aktif !== false)
+    .map((petugas) => `
+      <option value="${escapeHTML(petugas.id)}"
+        ${String(petugas.id) === assignedId ? "selected" : ""}>
+        ${escapeHTML(petugas.nama)}
       </option>
-    `;
-  }).join("");
+    `).join("");
 
-  const imageUrl = getField(row, ["foto_url", "url_foto", "foto", "gambar"], "");
+  const imageUrl = getField(row, ["foto_url"], "");
+
+  if (!$("modalBody")) return;
 
   $("modalBody").innerHTML = `
     <div class="detail-grid">
       <div class="detail-item">
         <small>Nama pelapor</small>
         <strong>${escapeHTML(getNamaPelapor(row))}</strong>
+      </div>
+
+      <div class="detail-item">
+        <small>Kontak</small>
+        <strong>${escapeHTML(getField(row, ["kontak"]))}</strong>
       </div>
 
       <div class="detail-item">
@@ -682,6 +650,9 @@ function openDetail(id) {
       ${imageUrl && /^https?:\/\//i.test(String(imageUrl)) ? `
         <div class="detail-item detail-full">
           <small>Foto laporan</small>
+          <a href="${escapeHTML(imageUrl)}" target="_blank" rel="noopener noreferrer">
+            Buka foto laporan
+          </a>
           <img src="${escapeHTML(imageUrl)}"
             alt="Foto laporan"
             style="max-width:100%;height:auto;border-radius:10px">
@@ -718,10 +689,22 @@ function openDetail(id) {
         </label>
 
         <label class="field">
+          Tanggal penugasan
+          <input type="date" name="tanggal_penugasan"
+            value="${escapeHTML(row.tanggal_penugasan || "")}">
+        </label>
+
+        <label class="field">
+          Tanggal target penyelesaian
+          <input type="date" name="tanggal_target"
+            value="${escapeHTML(row.tanggal_target || "")}">
+        </label>
+
+        <label class="field">
           Catatan penugasan
-          <textarea name="catatan" rows="3"
+          <textarea name="catatan_penugasan" rows="3"
             placeholder="Catatan untuk petugas">${escapeHTML(
-              getField(row, ["catatan", "catatan_petugas"], "")
+              row.catatan_penugasan || ""
             )}</textarea>
         </label>
 
@@ -740,6 +723,10 @@ function openDetail(id) {
   if ($("detailModal")) $("detailModal").hidden = false;
 }
 
+/* =====================================================
+   UPDATE STATUS DAN PENUGASAN LAPORAN
+===================================================== */
+
 async function handleModalSubmit(event) {
   if (event.target.id !== "updateLaporanForm") return;
 
@@ -747,61 +734,37 @@ async function handleModalSubmit(event) {
 
   const form = event.target;
   const formData = new FormData(form);
-
   const id = formData.get("id");
-  const status = formData.get("status");
-  const petugasId = formData.get("petugas_id") || null;
-  const catatan = formData.get("catatan") || null;
 
-  const original = laporanData.find(
-    (row) => String(getLaporanId(row)) === String(id)
-  );
+  const updateData = {
+    status: formData.get("status"),
+    petugas_id: formData.get("petugas_id") || null,
+    tanggal_penugasan: formData.get("tanggal_penugasan") || null,
+    tanggal_target: formData.get("tanggal_target") || null,
+    catatan_penugasan: formData.get("catatan_penugasan") || null
+  };
 
-  if (!original) {
-    showToast("Laporan tidak ditemukan.", "error");
-    return;
-  }
+  const button = form.querySelector("button[type='submit']");
 
-  const updateData = {};
-
-  if ("status" in original) {
-    updateData.status = status;
-  } else if ("status_laporan" in original) {
-    updateData.status_laporan = status;
-  } else if ("status_lap" in original) {
-    updateData.status_lap = status;
-  } else {
-    showToast("Kolom status tidak ditemukan di tabel laporan.", "error");
-    return;
-  }
-
-  if ("petugas_id" in original) {
-    updateData.petugas_id = petugasId;
-  } else if ("id_petugas" in original) {
-    updateData.id_petugas = petugasId;
-  }
-
-  if ("catatan" in original) {
-    updateData.catatan = catatan;
-  } else if ("catatan_petugas" in original) {
-    updateData.catatan_petugas = catatan;
-  }
-
-  const idColumn = "id" in original ? "id" : "laporan_id";
-  const submitButton = form.querySelector("button[type='submit']");
-
-  if (submitButton) {
-    submitButton.disabled = true;
-    submitButton.textContent = "Menyimpan...";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Menyimpan...";
   }
 
   try {
-    const { error } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from("laporan")
       .update(updateData)
-      .eq(idColumn, id);
+      .eq("id", id)
+      .select();
 
     if (error) throw error;
+
+    if (!data || data.length === 0) {
+      throw new Error(
+        "Tidak ada laporan yang diperbarui. Periksa izin UPDATE pada RLS."
+      );
+    }
 
     if ($("detailModal")) $("detailModal").hidden = true;
 
@@ -809,11 +772,11 @@ async function handleModalSubmit(event) {
     await loadData();
   } catch (error) {
     console.error("Update laporan gagal:", error);
-    showToast(`Gagal menyimpan laporan: ${error.message}`, "error");
+    showToast(`Gagal menyimpan perubahan: ${error.message}`, "error");
   } finally {
-    if (submitButton) {
-      submitButton.disabled = false;
-      submitButton.textContent = "Simpan Perubahan";
+    if (button) {
+      button.disabled = false;
+      button.textContent = "Simpan Perubahan";
     }
   }
 }
@@ -827,7 +790,7 @@ function handleModalClick(event) {
 }
 
 /* =====================================================
-   DATA PETUGAS
+   FILTER PETUGAS
 ===================================================== */
 
 function renderPetugasFilter() {
@@ -839,14 +802,18 @@ function renderPetugasFilter() {
   select.innerHTML = `
     <option value="">Semua petugas</option>
     ${petugasData.map((row) => `
-      <option value="${escapeHTML(getField(row, ["id", "petugas_id"], ""))}">
-        ${escapeHTML(getField(row, ["nama", "nama_petugas"], "Petugas"))}
+      <option value="${escapeHTML(row.id)}">
+        ${escapeHTML(row.nama)}
       </option>
     `).join("")}
   `;
 
   select.value = currentValue;
 }
+
+/* =====================================================
+   DATA PETUGAS
+===================================================== */
 
 function renderPetugas() {
   if ($("petugasCount")) {
@@ -863,9 +830,9 @@ function renderPetugas() {
 
   const filtered = petugasData.filter((row) => {
     const text = [
-      getField(row, ["nama", "nama_petugas"]),
-      getField(row, ["kontak", "no_hp", "telepon", "email"]),
-      getField(row, ["keahlian", "spesialisasi"])
+      row.nama,
+      row.kontak,
+      row.keahlian
     ].join(" ").toLowerCase();
 
     return !query || text.includes(query);
@@ -883,33 +850,25 @@ function renderPetugas() {
           </tr>
         </thead>
         <tbody>
-          ${filtered.map((row) => {
-            const active = row.aktif !== false && row.status !== "Nonaktif";
-
-            return `
-              <tr>
-                <td>${escapeHTML(getField(row, ["nama", "nama_petugas"]))}</td>
-                <td>${escapeHTML(getField(row, [
-                  "kontak", "no_hp", "telepon", "email"
-                ]))}</td>
-                <td>${escapeHTML(getField(row, [
-                  "keahlian", "spesialisasi"
-                ]))}</td>
-                <td>
-                  ${active
-                    ? '<span class="status-badge done">Aktif</span>'
-                    : '<span class="status-badge pending">Nonaktif</span>'}
-                </td>
-                <td>
-                  <button class="btn small secondary"
-                    data-action="edit-petugas"
-                    data-id="${escapeHTML(getField(row, ["id", "petugas_id"], ""))}">
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            `;
-          }).join("")}
+          ${filtered.map((row) => `
+            <tr>
+              <td>${escapeHTML(row.nama)}</td>
+              <td>${escapeHTML(row.kontak)}</td>
+              <td>${escapeHTML(row.keahlian)}</td>
+              <td>
+                ${row.aktif
+                  ? '<span class="status-badge done">Aktif</span>'
+                  : '<span class="status-badge pending">Nonaktif</span>'}
+              </td>
+              <td>
+                <button class="btn small secondary"
+                  data-action="edit-petugas"
+                  data-id="${escapeHTML(row.id)}">
+                  Edit
+                </button>
+              </td>
+            </tr>
+          `).join("")}
         </tbody>
       </table>`
     : renderEmpty("Belum ada data petugas.");
@@ -920,9 +879,7 @@ function handlePetugasTableClick(event) {
   if (!button) return;
 
   const row = petugasData.find(
-    (item) =>
-      String(getField(item, ["id", "petugas_id"], "")) ===
-      String(button.dataset.id)
+    (item) => String(item.id) === String(button.dataset.id)
   );
 
   if (row) openPetugasForm(row);
@@ -934,35 +891,11 @@ function openPetugasForm(row = null) {
 
   form.reset();
 
-  if ($("petugasId")) {
-    $("petugasId").value = row
-      ? getField(row, ["id", "petugas_id"], "")
-      : "";
-  }
-
-  if ($("petugasNama")) {
-    $("petugasNama").value = row
-      ? getField(row, ["nama", "nama_petugas"], "")
-      : "";
-  }
-
-  if ($("petugasKontak")) {
-    $("petugasKontak").value = row
-      ? getField(row, ["kontak", "no_hp", "telepon", "email"], "")
-      : "";
-  }
-
-  if ($("petugasKeahlian")) {
-    $("petugasKeahlian").value = row
-      ? getField(row, ["keahlian", "spesialisasi"], "")
-      : "";
-  }
-
-  if ($("petugasAktif")) {
-    $("petugasAktif").checked = row
-      ? row.aktif !== false && row.status !== "Nonaktif"
-      : true;
-  }
+  if ($("petugasId")) $("petugasId").value = row?.id || "";
+  if ($("petugasNama")) $("petugasNama").value = row?.nama || "";
+  if ($("petugasKontak")) $("petugasKontak").value = row?.kontak || "";
+  if ($("petugasKeahlian")) $("petugasKeahlian").value = row?.keahlian || "";
+  if ($("petugasAktif")) $("petugasAktif").checked = row ? row.aktif : true;
 
   if ($("petugasModalTitle")) {
     $("petugasModalTitle").textContent = row
@@ -987,42 +920,12 @@ async function savePetugas(event) {
     return;
   }
 
-  const existing = id
-    ? petugasData.find(
-        (row) =>
-          String(getField(row, ["id", "petugas_id"], "")) === String(id)
-      )
-    : null;
-
-  const data = {};
-
-  if (existing && "nama_petugas" in existing) {
-    data.nama_petugas = nama;
-  } else {
-    data.nama = nama;
-  }
-
-  if (existing && "no_hp" in existing) {
-    data.no_hp = kontak || null;
-  } else if (existing && "telepon" in existing) {
-    data.telepon = kontak || null;
-  } else if (existing && "email" in existing) {
-    data.email = kontak || null;
-  } else {
-    data.kontak = kontak || null;
-  }
-
-  if (existing && "spesialisasi" in existing) {
-    data.spesialisasi = keahlian || null;
-  } else {
-    data.keahlian = keahlian || null;
-  }
-
-  if (existing && "status" in existing && !("aktif" in existing)) {
-    data.status = aktif ? "Aktif" : "Nonaktif";
-  } else {
-    data.aktif = aktif;
-  }
+  const data = {
+    nama,
+    kontak: kontak || null,
+    keahlian: keahlian || null,
+    aktif
+  };
 
   const button = $("petugasSaveBtn");
 
@@ -1035,26 +938,29 @@ async function savePetugas(event) {
     let result;
 
     if (id) {
-      const idColumn =
-        existing && "petugas_id" in existing ? "petugas_id" : "id";
-
       result = await supabaseClient
         .from("petugas")
         .update(data)
-        .eq(idColumn, id);
+        .eq("id", id)
+        .select();
     } else {
       result = await supabaseClient
         .from("petugas")
-        .insert(data);
+        .insert(data)
+        .select();
     }
 
     if (result.error) throw result.error;
 
+    if (!result.data || result.data.length === 0) {
+      throw new Error(
+        "Data petugas tidak berubah. Periksa izin INSERT/UPDATE pada RLS."
+      );
+    }
+
     if ($("petugasModal")) $("petugasModal").hidden = true;
 
-    showToast(
-      id ? "Data petugas diperbarui." : "Petugas berhasil ditambahkan."
-    );
+    showToast(id ? "Data petugas diperbarui." : "Petugas berhasil ditambahkan.");
 
     await loadData();
   } catch (error) {
