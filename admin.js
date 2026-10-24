@@ -6,12 +6,22 @@ const dateText=s=>{if(!s)return "-";try{return new Date(s).toLocaleString("id-ID
 const dateOnly=s=>{if(!s)return "-";try{return new Date(s+"T00:00:00").toLocaleDateString("id-ID",{dateStyle:"medium"})}catch{return "-"}};
 const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 
-/* ---------- Koneksi Supabase (dengan pengecekan konfigurasi) ---------- */
-const CONFIG_OK=!!(window.supabase&&window.SUPABASE_URL&&window.SUPABASE_ANON_KEY
-  &&!/XXXX|ISI_ANON/.test(String(window.SUPABASE_URL)+String(window.SUPABASE_ANON_KEY)));
-let sb=null;
-try{ if(CONFIG_OK) sb=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_ANON_KEY); }
-catch(err){ console.error("createClient gagal:",err); }
+/* ---------- Koneksi Supabase ---------- */
+/* ISI DUA BARIS INI SAJA. File supabase-config.js tidak dipakai lagi. */
+const SUPABASE_URL = "https://KODEPROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
+
+let sb=null,CONFIG_ERROR="";
+if(!window.supabase){
+  CONFIG_ERROR="Library Supabase gagal dimuat. Cek koneksi internet atau pastikan index.html versi terbaru.";
+}else if(/KODEPROJECT|XXXX/.test(SUPABASE_URL)){
+  CONFIG_ERROR='SUPABASE_URL di admin.js masih contoh ("KODEPROJECT"). Ganti dengan Project URL asli dari dashboard Supabase.';
+}else if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE_URL)){
+  CONFIG_ERROR='Format SUPABASE_URL salah: "'+SUPABASE_URL+'". Harus seperti https://abcdefghijklmnopqrst.supabase.co (tanpa "/" di akhir).';
+}else{
+  try{ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }
+  catch(err){ console.error("createClient gagal:",err); CONFIG_ERROR="createClient gagal: "+err.message; }
+}
 
 let reports=[],petugas=[],activeView="dashboard";
 
@@ -40,20 +50,15 @@ function loginErrorText(err){
   const m=String(err?.message||err||"").toLowerCase();
   if(m.includes("invalid login credentials"))return "Email atau password salah, atau akun belum dibuat di Supabase (Authentication → Users).";
   if(m.includes("email not confirmed"))return "Email belum dikonfirmasi. Di Supabase: Authentication → Users → titik tiga → Confirm user.";
-  if(m.includes("failed to fetch")||m.includes("networkerror")||m.includes("load failed"))return "Tidak bisa terhubung ke Supabase. Cek SUPABASE_URL di supabase-config.js (bentuk: https://xxxx.supabase.co).";
-  if(m.includes("invalid api key")||m.includes("apikey"))return "API key salah. Cek SUPABASE_ANON_KEY di supabase-config.js (pakai anon public key).";
+  if(m.includes("failed to fetch")||m.includes("networkerror")||m.includes("load failed"))return "Tidak bisa terhubung ke Supabase. Cek SUPABASE_URL di admin.js (bentuk: https://xxxx.supabase.co).";
+  if(m.includes("invalid api key")||m.includes("apikey"))return "API key salah. Cek SUPABASE_ANON_KEY di admin.js (pakai anon public key).";
   return "Gagal masuk: "+(err?.message||err);
 }
 $("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();
   const msg=$("loginMessage"),btn=$("loginBtn");
   msg.textContent="";
-  if(!sb){
-    msg.textContent=window.supabase
-      ?"Konfigurasi Supabase belum diisi. Edit supabase-config.js (SUPABASE_URL dan SUPABASE_ANON_KEY)."
-      :"Library Supabase gagal dimuat. Periksa koneksi internet atau index.html versi terbaru.";
-    return;
-  }
+  if(!sb){msg.textContent=CONFIG_ERROR;return}
   btn.disabled=true;
   try{
     const {data,error}=await sb.auth.signInWithPassword({email:$("username").value.trim(),password:$("password").value});
