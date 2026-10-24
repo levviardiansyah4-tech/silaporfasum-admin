@@ -106,6 +106,114 @@ function petugasCell(r){
 }
 function tableMarkup(list){
   if(!list.length)return '<div class="empty">Belum ada laporan yang cocok.</div>';
+  return `<table><thead><tr><th>Nomor / Pelapor</th><th>Kategori</th><th>Tanggal</th><th>Status</th><th>Petugas</th><th>Aksi</th></tr></thead><tbody>${list.map(r=>`<tr><td><strong>${esc(r.id)}</strong><br><span>${esc(r.nama||"Tanpa nama")}</span></td><td>${esc(r.kategori||"-")}</td><td>${esc(dateText(r.createdAt))}</td><td>${badge(r.status)}</td><td>${petugasCelconst $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const STATUSES=["Laporan Dikirim","Diverifikasi","Sedang Diproses","Selesai Diperbaiki"];
+const statusClass=s=>String(s||"").toLowerCase().replaceAll(" ","-").replaceAll("/","-");
+const dateText=s=>{if(!s)return "-";try{return new Date(s).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"})}catch{return "-"}};
+const dateOnly=s=>{if(!s)return "-";try{return new Date(s+"T00:00:00").toLocaleDateString("id-ID",{dateStyle:"medium"})}catch{return "-"}};
+const today=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+
+/* ---------- Koneksi Supabase ---------- */
+/* ISI DUA BARIS INI SAJA. File supabase-config.js tidak dipakai lagi. */
+const SUPABASE_URL = "https://KODEPROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
+
+let sb=null,CONFIG_ERROR="";
+if(!window.supabase){
+  CONFIG_ERROR="Library Supabase gagal dimuat. Cek koneksi internet atau pastikan index.html versi terbaru.";
+}else if(/KODEPROJECT|XXXX/.test(SUPABASE_URL)){
+  CONFIG_ERROR='SUPABASE_URL di admin.js masih contoh ("KODEPROJECT"). Ganti dengan Project URL asli dari dashboard Supabase.';
+}else if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(SUPABASE_URL)){
+  CONFIG_ERROR='Format SUPABASE_URL salah: "'+SUPABASE_URL+'". Harus seperti https://abcdefghijklmnopqrst.supabase.co (tanpa "/" di akhir).';
+}else{
+  try{ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY); }
+  catch(err){ console.error("createClient gagal:",err); CONFIG_ERROR="createClient gagal: "+err.message; }
+}
+
+let reports=[],petugas=[],activeView="dashboard";
+
+/* Pemetaan kolom tabel `laporan` -> field yang dipakai tampilan.
+   Kalau nama kolom di Supabase kamu berbeda, ubah di sini saja. */
+const normalize=r=>({...r,
+  createdAt:r.created_at||r.createdAt||null,
+  nama:r.nama??r.nama_pelapor,
+  kontak:r.kontak??r.email??r.no_hp,
+  alamat:r.alamat??r.lokasi,
+  foto:r.foto??r.foto_url,
+  lat:r.lat??r.latitude,
+  lon:r.lon??r.lng??r.longitude,
+  status:r.status||"Laporan Dikirim"});
+
+const pById=id=>petugas.find(p=>p.id===id);
+const activeTaskCount=pid=>reports.filter(r=>r.petugas_id===pid&&r.status!=="Selesai Diperbaiki").length;
+const isOverdue=r=>!!r.tanggal_target&&r.status!=="Selesai Diperbaiki"&&r.tanggal_target<today();
+
+let toastTimer;
+function toast(msg,type){let t=$("toast");if(!t){t=document.createElement("div");t.id="toast";document.body.appendChild(t)}
+  t.textContent=msg;t.className="toast show "+(type||"");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.className="toast",3800)}
+
+/* ---------- Auth ---------- */
+function loginErrorText(err){
+  const m=String(err?.message||err||"").toLowerCase();
+  if(m.includes("invalid login credentials"))return "Email atau password salah, atau akun belum dibuat di Supabase (Authentication → Users).";
+  if(m.includes("email not confirmed"))return "Email belum dikonfirmasi. Di Supabase: Authentication → Users → titik tiga → Confirm user.";
+  if(m.includes("failed to fetch")||m.includes("networkerror")||m.includes("load failed"))return "Tidak bisa terhubung ke Supabase. Cek SUPABASE_URL di admin.js (bentuk: https://xxxx.supabase.co).";
+  if(m.includes("invalid api key")||m.includes("apikey"))return "API key salah. Cek SUPABASE_ANON_KEY di admin.js (pakai anon public key).";
+  return "Gagal masuk: "+(err?.message||err);
+}
+$("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const msg=$("loginMessage"),btn=$("loginBtn");
+  msg.textContent="";
+  if(!sb){msg.textContent=CONFIG_ERROR;return}
+  btn.disabled=true;
+  try{
+    const {data,error}=await sb.auth.signInWithPassword({email:$("username").value.trim(),password:$("password").value});
+    if(error){console.error("Login error:",error);msg.textContent=loginErrorText(error);return}
+    showApp(data.session);
+  }catch(err){
+    console.error("Login exception:",err);msg.textContent=loginErrorText(err);
+  }finally{btn.disabled=false}
+});
+async function showApp(session){
+  $("loginScreen").hidden=true;$("appScreen").hidden=false;
+  $("adminEmail").textContent=session?.user?.email||"Pengelola sistem";
+  await loadData();
+}
+async function logout(){
+  if(sb)await sb.auth.signOut();
+  $("appScreen").hidden=true;$("loginScreen").hidden=false;$("password").value="";reports=[];petugas=[];
+}
+
+/* ---------- Data ---------- */
+async function loadData(){
+  if(!sb)return;
+  $("reportsTable").innerHTML='<div class="empty">Memuat data...</div>';
+  const [r,p]=await Promise.all([sb.from("laporan").select("*"),sb.from("petugas").select("*").order("nama")]);
+  if(r.error){console.error(r.error);toast("Gagal memuat laporan: "+r.error.message,"error")}
+  if(p.error){console.error(p.error);toast("Gagal memuat petugas: "+p.error.message,"error")}
+  reports=(r.data||[]).map(normalize).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+  petugas=p.data||[];
+  renderAll();
+}
+
+/* ---------- Tampilan ---------- */
+function setView(view){
+  activeView=view;
+  ["dashboard","reports","petugas","guide"].forEach(v=>$(v+"View").hidden=v!==view);
+  document.querySelectorAll(".side-link").forEach(b=>b.classList.toggle("active",b.dataset.view===view));
+  $("pageTitle").textContent={dashboard:"Dashboard",reports:"Data Laporan",petugas:"Petugas",guide:"Panduan Admin"}[view];
+  $("crumb").textContent={dashboard:"DASHBOARD",reports:"DATA LAPORAN",petugas:"PETUGAS",guide:"PANDUAN ADMIN"}[view];
+}
+const badge=s=>`<span class="status ${statusClass(s)}">${esc(s||"Laporan Dikirim")}</span>`;
+function petugasCell(r){
+  if(!r.petugas_id)return '<span class="muted-text">Belum ditugaskan</span>';
+  const p=pById(r.petugas_id);
+  return `<strong>${esc(p?p.nama:"(tidak ditemukan)")}</strong>${r.tanggal_target?`<br><span>Target ${esc(dateOnly(r.tanggal_target))}</span>`:""}${isOverdue(r)?'<span class="status terlambat">Terlambat</span>':""}`;
+}
+function tableMarkup(list){
+  if(!list.length)return '<div class="empty">Belum ada laporan yang cocok.</div>';
   return `<table><thead><tr><th>Nomor / Pelapor</th><th>Kategori</th><th>Tanggal</th><th>Status</th><th>Petugas</th><th>Aksi</th></tr></thead><tbody>${list.map(r=>`<tr><td><strong>${esc(r.id)}</strong><br><span>${esc(r.nama||"Tanpa nama")}</span></td><td>${esc(r.kategori||"-")}</td><td>${esc(dateText(r.createdAt))}</td><td>${badge(r.status)}</td><td>${petugasCell(r)}</td><td><button class="table-action" data-detail="${esc(r.id)}">Detail</button></td></tr>`).join("")}</tbody></table>`;
 }
 function renderDashboard(){
@@ -185,47 +293,4 @@ function openPetugasForm(id){
   const p=id?pById(id):null;
   $("petugasModalTitle").textContent=p?"Edit petugas":"Tambah petugas";
   $("petugasId").value=p?p.id:"";
-  $("petugasNama").value=p?.nama||"";$("petugasKontak").value=p?.kontak||"";$("petugasKeahlian").value=p?.keahlian||"";
-  $("petugasAktif").checked=p?p.aktif:true;
-  $("petugasModal").hidden=false;$("petugasNama").focus();
-}
-$("petugasForm").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const id=$("petugasId").value;
-  const row={nama:$("petugasNama").value.trim(),kontak:$("petugasKontak").value.trim()||null,keahlian:$("petugasKeahlian").value.trim()||null,aktif:$("petugasAktif").checked};
-  if(!row.nama)return;
-  const btn=$("petugasSaveBtn");btn.disabled=true;
-  const {data,error}=await(id?sb.from("petugas").update(row).eq("id",id).select():sb.from("petugas").insert(row).select());
-  btn.disabled=false;
-  if(error||!data||!data.length){if(error)console.error(error);toast("Gagal menyimpan petugas"+(error?": "+error.message:". Cek policy RLS."),"error");return}
-  $("petugasModal").hidden=true;await loadData();toast("Petugas disimpan.");
-});
-async function togglePetugas(id){
-  const p=pById(id);if(!p)return;
-  const n=activeTaskCount(id);
-  if(p.aktif&&n&&!confirm(`${p.nama} masih menangani ${n} laporan yang belum selesai. Tetap nonaktifkan?`))return;
-  const {data,error}=await sb.from("petugas").update({aktif:!p.aktif}).eq("id",id).select();
-  if(error||!data||!data.length){if(error)console.error(error);toast("Gagal mengubah status petugas.","error");return}
-  await loadData();toast(p.aktif?"Petugas dinonaktifkan.":"Petugas diaktifkan.");
-}
-
-/* ---------- Event ---------- */
-document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.view)));
-document.querySelectorAll("[data-goto]").forEach(b=>b.addEventListener("click",()=>setView(b.dataset.goto)));
-document.addEventListener("click",e=>{
-  const d=e.target.closest("[data-detail]");if(d)openDetail(d.dataset.detail);
-  const ed=e.target.closest("[data-edit-petugas]");if(ed)openPetugasForm(ed.dataset.editPetugas);
-  const tg=e.target.closest("[data-toggle-petugas]");if(tg)togglePetugas(tg.dataset.togglePetugas);
-  const c=e.target.closest("[data-close]");if(c){const m=c.closest(".modal");if(m)m.hidden=true}
-});
-document.addEventListener("keydown",e=>{if(e.key==="Escape")document.querySelectorAll(".modal").forEach(m=>m.hidden=true)});
-$("logoutBtn").addEventListener("click",logout);
-$("refreshBtn").addEventListener("click",loadData);
-$("addPetugasBtn").addEventListener("click",()=>openPetugasForm());
-["searchInput","statusFilter","categoryFilter","petugasFilter"].forEach(id=>$(id).addEventListener("input",renderReports));
-$("petugasSearch").addEventListener("input",renderPetugas);
-
-if(sb){
-  sb.auth.onAuthStateChange(ev=>{if(ev==="SIGNED_OUT"){$("appScreen").hidden=true;$("loginScreen").hidden=false}});
-  (async()=>{const {data}=await sb.auth.getSession();if(data.session)showApp(data.session)})();
-}
+  $("petugasNama").value=p?.nama||"";$("petugasKontak").value=p?.kon
