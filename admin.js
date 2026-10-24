@@ -1,7 +1,7 @@
 
 /* =====================================================
    SiLaporFasum - Admin JavaScript
-   Supabase Configuration
+   Supabase + Dashboard + Laporan + Petugas
 ===================================================== */
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
@@ -12,6 +12,7 @@ let laporanData = [];
 let petugasData = [];
 let currentUser = null;
 let selectedLaporan = null;
+let loadingData = false;
 
 /* =====================================================
    HELPER
@@ -44,7 +45,7 @@ function showToast(message, type = "success") {
   clearTimeout(showToast.timer);
   showToast.timer = setTimeout(() => {
     toast.hidden = true;
-  }, 3500);
+  }, 4000);
 }
 
 function showLoginMessage(message) {
@@ -131,7 +132,7 @@ function renderEmpty(message) {
 }
 
 /* =====================================================
-   INISIALISASI SUPABASE
+   INISIALISASI
 ===================================================== */
 
 document.addEventListener("DOMContentLoaded", initializeAdmin);
@@ -146,7 +147,7 @@ async function initializeAdmin() {
     showLoginMessage(
       "Library Supabase belum termuat. Periksa script di index.html."
     );
-    console.error("Supabase JavaScript library tidak ditemukan.");
+    console.error("Library Supabase tidak ditemukan.");
     return;
   }
 
@@ -179,6 +180,9 @@ async function initializeAdmin() {
         currentUser = null;
         laporanData = [];
         petugasData = [];
+        renderDashboard();
+        renderReports();
+        renderPetugas();
         showLoginScreen();
       }
     });
@@ -186,12 +190,14 @@ async function initializeAdmin() {
     console.log("Supabase client berhasil dibuat.");
   } catch (error) {
     console.error("Inisialisasi Supabase gagal:", error);
-    showLoginMessage(`Inisialisasi Supabase gagal: ${error.message}`);
+    showLoginMessage(
+      `Inisialisasi Supabase gagal: ${error.message}`
+    );
   }
 }
 
 /* =====================================================
-   EVENT LISTENER
+   EVENT
 ===================================================== */
 
 function bindEvents() {
@@ -218,7 +224,11 @@ function bindEvents() {
   $("petugasFilter")?.addEventListener("change", renderReports);
 
   $("petugasSearch")?.addEventListener("input", renderPetugas);
-  $("addPetugasBtn")?.addEventListener("click", () => openPetugasForm());
+
+  $("addPetugasBtn")?.addEventListener("click", () => {
+    openPetugasForm();
+  });
+
   $("petugasForm")?.addEventListener("submit", savePetugas);
 
   document.querySelectorAll("[data-close]").forEach((button) => {
@@ -245,7 +255,7 @@ async function handleLogin(event) {
   showLoginMessage("");
 
   if (!supabaseClient) {
-    showLoginMessage("Koneksi Supabase belum siap. Muat ulang halaman.");
+    showLoginMessage("Koneksi belum siap. Muat ulang halaman.");
     return;
   }
 
@@ -265,10 +275,11 @@ async function handleLogin(event) {
   }
 
   try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
+    const { data, error } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
 
     if (error) throw error;
 
@@ -276,7 +287,9 @@ async function handleLogin(event) {
     await showApplication();
   } catch (error) {
     console.error("Login gagal:", error);
-    showLoginMessage(error.message || "Login gagal. Periksa email dan password.");
+    showLoginMessage(
+      error.message || "Login gagal. Periksa email dan password."
+    );
   } finally {
     if (button) {
       button.disabled = false;
@@ -290,6 +303,7 @@ async function handleLogout() {
 
   try {
     const { error } = await supabaseClient.auth.signOut();
+
     if (error) throw error;
 
     currentUser = null;
@@ -351,7 +365,8 @@ function showView(viewName) {
 }
 
 /* =====================================================
-   MEMUAT DATA DARI SUPABASE
+   MEMUAT DATA
+   Laporan dan petugas dimuat secara terpisah.
 ===================================================== */
 
 async function loadData() {
@@ -359,6 +374,9 @@ async function loadData() {
     showToast("Koneksi Supabase belum siap.", "error");
     return;
   }
+
+  if (loadingData) return;
+  loadingData = true;
 
   const button = $("refreshBtn");
 
@@ -368,31 +386,51 @@ async function loadData() {
   }
 
   try {
-    const [laporanResult, petugasResult] = await Promise.all([
-      supabaseClient
-        .from("laporan")
-        .select("*")
-        .order("created_at", { ascending: false }),
-
-      supabaseClient
-        .from("petugas")
-        .select("*")
-        .order("created_at", { ascending: false })
-    ]);
+    // 1. Muat laporan terlebih dahulu.
+    const laporanResult = await supabaseClient
+      .from("laporan")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (laporanResult.error) {
       throw new Error(
-        `Tabel laporan: ${laporanResult.error.message}`
-      );
-    }
-
-    if (petugasResult.error) {
-      throw new Error(
-        `Tabel petugas: ${petugasResult.error.message}`
+        `Gagal memuat tabel laporan: ${laporanResult.error.message}`
       );
     }
 
     laporanData = laporanResult.data || [];
+
+    renderDashboard();
+    renderReports();
+
+    console.log("Jumlah laporan:", laporanData.length);
+
+    // 2. Muat petugas secara terpisah.
+    const petugasResult = await supabaseClient
+      .from("petugas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (petugasResult.error) {
+      console.error(
+        "Gagal memuat tabel petugas:",
+        petugasResult.error
+      );
+
+      petugasData = [];
+
+      renderDashboard();
+      renderPetugas();
+      renderPetugasFilter();
+
+      showToast(
+        `Laporan berhasil dimuat, tetapi petugas gagal dimuat: ${petugasResult.error.message}`,
+        "error"
+      );
+
+      return;
+    }
+
     petugasData = petugasResult.data || [];
 
     renderDashboard();
@@ -400,16 +438,17 @@ async function loadData() {
     renderPetugas();
     renderPetugasFilter();
 
-    console.log("Data laporan dari Supabase:", laporanData);
-    console.log("Jumlah laporan:", laporanData.length);
-    console.log("Data petugas dari Supabase:", petugasData);
     console.log("Jumlah petugas:", petugasData.length);
 
-    showToast(`Data dimuat. Total laporan: ${laporanData.length}.`);
+    showToast(
+      `Data berhasil dimuat. Total laporan: ${laporanData.length}.`
+    );
   } catch (error) {
     console.error("Gagal memuat data:", error);
-    showToast(`Gagal memuat data: ${error.message}`, "error");
+    showToast(error.message, "error");
   } finally {
+    loadingData = false;
+
     if (button) {
       button.disabled = false;
       button.textContent = "↻ Muat ulang";
@@ -500,7 +539,7 @@ function renderDashboard() {
 }
 
 /* =====================================================
-   DATA LAPORAN
+   DAFTAR LAPORAN
 ===================================================== */
 
 function renderReports() {
@@ -598,7 +637,7 @@ function openDetail(id) {
   }
 
   const petugasOptions = petugasData
-    .filter((petugas) => petugas.aktif !== false)
+    .filter((petugas) => petugas.aktif === true)
     .map((petugas) => `
       <option value="${escapeHTML(petugas.id)}"
         ${String(petugas.id) === assignedId ? "selected" : ""}>
@@ -650,7 +689,8 @@ function openDetail(id) {
       ${imageUrl && /^https?:\/\//i.test(String(imageUrl)) ? `
         <div class="detail-item detail-full">
           <small>Foto laporan</small>
-          <a href="${escapeHTML(imageUrl)}" target="_blank" rel="noopener noreferrer">
+          <a href="${escapeHTML(imageUrl)}"
+             target="_blank" rel="noopener noreferrer">
             Buka foto laporan
           </a>
           <img src="${escapeHTML(imageUrl)}"
@@ -724,7 +764,7 @@ function openDetail(id) {
 }
 
 /* =====================================================
-   UPDATE STATUS DAN PENUGASAN LAPORAN
+   SIMPAN PERUBAHAN LAPORAN
 ===================================================== */
 
 async function handleModalSubmit(event) {
@@ -762,7 +802,7 @@ async function handleModalSubmit(event) {
 
     if (!data || data.length === 0) {
       throw new Error(
-        "Tidak ada laporan yang diperbarui. Periksa izin UPDATE pada RLS."
+        "Laporan tidak diperbarui. Periksa izin UPDATE pada RLS."
       );
     }
 
@@ -895,21 +935,32 @@ function openPetugasForm(row = null) {
   if ($("petugasNama")) $("petugasNama").value = row?.nama || "";
   if ($("petugasKontak")) $("petugasKontak").value = row?.kontak || "";
   if ($("petugasKeahlian")) $("petugasKeahlian").value = row?.keahlian || "";
-  if ($("petugasAktif")) $("petugasAktif").checked = row ? row.aktif : true;
+  if ($("petugasAktif")) {
+    $("petugasAktif").checked = row ? row.aktif === true : true;
+  }
 
   if ($("petugasModalTitle")) {
     $("petugasModalTitle").textContent = row
-      ? "Edit petugas"
-      : "Tambah petugas";
+      ? "Edit Petugas"
+      : "Tambah Petugas";
   }
 
   if ($("petugasModal")) $("petugasModal").hidden = false;
 }
 
+/* =====================================================
+   SIMPAN PETUGAS
+===================================================== */
+
 async function savePetugas(event) {
   event.preventDefault();
 
-  const id = $("petugasId")?.value;
+  if (!supabaseClient) {
+    showToast("Koneksi Supabase belum siap.", "error");
+    return;
+  }
+
+  const id = $("petugasId")?.value.trim();
   const nama = $("petugasNama")?.value.trim();
   const kontak = $("petugasKontak")?.value.trim();
   const keahlian = $("petugasKeahlian")?.value.trim();
@@ -954,13 +1005,15 @@ async function savePetugas(event) {
 
     if (!result.data || result.data.length === 0) {
       throw new Error(
-        "Data petugas tidak berubah. Periksa izin INSERT/UPDATE pada RLS."
+        "Data petugas tidak tersimpan. Periksa izin INSERT/UPDATE pada RLS."
       );
     }
 
     if ($("petugasModal")) $("petugasModal").hidden = true;
 
-    showToast(id ? "Data petugas diperbarui." : "Petugas berhasil ditambahkan.");
+    showToast(
+      id ? "Data petugas berhasil diperbarui." : "Petugas berhasil ditambahkan."
+    );
 
     await loadData();
   } catch (error) {
