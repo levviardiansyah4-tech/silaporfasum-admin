@@ -1,0 +1,20 @@
+.muted-text{color:#9aa3b0;font-size:10px}
+.status.terlambat{background:#ffe3e3;color:#c22b2b;margin-left:4px}
+.status.aktif{background:#def8e9;color:#147847}
+.status.nonaktif{background:#eceff4;color:#6b7789}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.small{padding:9px 12px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid .detail-full{grid-column:1/-1}
+.field{display:block;font-size:12px;font-weight:750;color:#26344a}
+.field input:not([type=checkbox]),.field select,.field textarea{width:100%;display:block;margin-top:6px;padding:10px 12px;border:1px solid #dce2eb;border-radius:9px;outline:none;font:inherit;font-weight:400;background:#fff;color:var(--ink)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#86a5f8;box-shadow:0 0 0 3px #285fe814}
+.check{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:750;grid-column:1/-1}
+.assign-box{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.assign-box h3{font-size:13px;margin:0 0 14px}
+.modal-card.narrow{width:min(100%,460px)}
+.toast{position:fixed;right:20px;bottom:20px;z-index:50;background:#182230;color:#fff;padding:12px 16px;border-radius:10px;font-size:12px;opacity:0;transform:translateY(10px);pointer-events:none;transition:.2s;max-width:340px}
+.toast.show{opacity:1;transform:none}
+.toast.error{background:#c22b2b}
+.toolbar .btn.primary{white-space:nowrap}
+@media(max-width:760px){.form-grid{grid-template-columns:1fr}}
