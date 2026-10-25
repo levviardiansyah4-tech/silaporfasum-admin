@@ -1,8 +1,18 @@
-HOTFIX FORM STATUS SiLaporFasum
+PERBAIKAN SiLaporFasum Admin
 
-1. Upload semua file dari folder silaporfasum-admin.-main ke repository GitHub Pages admin, overwrite file lama.
-2. Pastikan admin.js di GitHub berisi komentar "Bind directly to the newly-created form".
-3. Hard refresh Ctrl+Shift+R. Setelah klik Simpan, URL tidak boleh berubah menjadi ?id=...&status=...; jika berubah, file terbaru belum terpasang atau JS tidak termuat.
-4. Jika update error, lihat Console dan toast. Kode memerlukan policy RLS UPDATE dan SELECT yang sesuai untuk akun admin.
+Yang diperbaiki di admin.js:
+1. Foto dari bucket privat `foto-laporan` sekarang memakai signed URL baru (berlaku 1 jam), bukan getPublicUrl.
+2. URL foto yang tersimpan sebagai URL Supabase penuh atau path bucket/file ditangani.
+3. URL foto diperbarui saat data laporan dimuat dan setelah perubahan laporan disimpan.
+4. Pesan error penyimpanan status dibuat lebih jelas jika tidak ada baris yang diperbarui.
 
-FOTO: admin.js memakai foto_url sebagai sumber foto. URL foto yang pernah diuji mengembalikan Bucket not found. Ini tidak bisa diselesaikan hanya dengan CSS/HTML. Pastikan URL foto mengarah ke bucket dan project Supabase yang benar. Buka Storage > bucket yang benar > file > Copy URL. Jangan ubah URL menjadi nama bucket foto-laporan kecuali nama bucket itu memang benar.
+CARA PASANG
+1. Ekstrak ZIP ini.
+2. Upload/replace file dalam folder `silaporfasum-admin.-main` ke tempat hosting admin (termasuk admin.js dan index.html/css bila hosting menyimpan satu folder).
+3. Hard refresh browser: Ctrl+Shift+R (Windows) atau Cmd+Shift+R (Mac), lalu login lagi.
+
+CATATAN SUPABASE
+- Bucket `foto-laporan` adalah private. Membuat signed URL memerlukan sesi login dan policy SELECT pada `storage.objects` yang mengizinkan akun admin membaca objek bucket `foto-laporan`.
+- Jika foto masih gagal, buka Console browser. Pesan `URL foto laporan tidak dapat dibuat` biasanya berarti policy Storage atau path file tidak cocok.
+- Jika status gagal disimpan dan muncul pesan tidak ada baris yang diperbarui, cek policy RLS UPDATE dan SELECT pada tabel `public.laporan` untuk akun admin serta pastikan ID laporan cocok. Kode frontend tidak dapat mengubah policy database.
+- Jangan membuat policy UPDATE/SELECT terbuka untuk semua pengguna tanpa pembatasan peran.

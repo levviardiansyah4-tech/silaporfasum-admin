@@ -592,7 +592,7 @@ async function loadData() {
       );
     }
 
-    laporanData = laporanResult.data || [];
+    laporanData = await hydrateReportPhotoUrls(laporanResult.data || []);
 
     renderDashboard();
     renderReports();
@@ -705,24 +705,71 @@ function renderDashboard() {
 ===================================================== */
 
 function getReportPhotoUrl(row) {
+  if (row?._foto_display_url) return row._foto_display_url;
   const raw = getField(row, ["foto_url", "foto_laporan", "photo_url"], "");
   if (!raw || raw === "-") return "";
   const value = String(raw).trim();
-
-  // Jika database sudah menyimpan URL, gunakan URL tersebut.
-  if (/^https?:\/\//i.test(value)) return value;
-
-  // Kolom foto kadang menyimpan path seperti "foto-laporan/ID/file.jpg"
-  // atau hanya "ID/file.jpg". Bucket yang digunakan adalah foto-laporan.
-  const cleanPath = value
-    .replace(/^\/+/, "")
-    .replace(/^storage\/v1\/object\/(public|sign)\/foto-laporan\//i, "")
-    .replace(/^foto-laporan\//i, "");
-
-  if (supabaseClient?.storage && cleanPath) {
-    return supabaseClient.storage.from("foto-laporan").getPublicUrl(cleanPath).data.publicUrl || "";
+  // URL publik dari bucket lain tetap bisa dipakai langsung. URL dari bucket
+  // foto-laporan tidak boleh dibuat dengan getPublicUrl karena bucket ini privat.
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const url = new URL(value);
+      const match = url.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/([^/]+)\/(.+)$/i);
+      if (!match || match[1] !== "foto-laporan") return value;
+    } catch (_) {
+      return "";
+    }
   }
-  return "";
+  return ""; // URL tampilan disiapkan async oleh hydrateReportPhotoUrls().
+}
+
+function getPhotoStoragePath(rawValue) {
+  const value = String(rawValue || "").trim();
+  if (!value || value === "-") return null;
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const url = new URL(value);
+      // Hanya URL storage dari project Supabase ini yang diproses ulang.
+      if (url.hostname !== new URL(SUPABASE_URL).hostname) return { externalUrl: value };
+      const match = url.pathname.match(/\/storage\/v1\/object\/(?:sign|public)\/([^/]+)\/(.+)$/i);
+      if (!match) return { externalUrl: value };
+      return { bucket: match[1], path: decodeURIComponent(match[2]) };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  const clean = value.replace(/^\/+/, "").replace(/^storage\/v1\/object\/(?:sign|public)\//i, "");
+  const withBucket = clean.match(/^([^/]+)\/(.+)$/);
+  if (withBucket && ["foto-laporan", "laporan-foto", "bukti-perbaikan"].includes(withBucket[1])) {
+    return { bucket: withBucket[1], path: withBucket[2] };
+  }
+  return { bucket: "foto-laporan", path: clean };
+}
+
+async function hydrateReportPhotoUrls(rows) {
+  return Promise.all((rows || []).map(async (row) => {
+    const raw = getField(row, ["foto_url", "foto_laporan", "photo_url"], "");
+    const parsed = getPhotoStoragePath(raw);
+    if (!parsed) return { ...row, _foto_display_url: "" };
+    if (parsed.externalUrl) return { ...row, _foto_display_url: parsed.externalUrl };
+    if (!parsed.path || !supabaseClient?.storage) return { ...row, _foto_display_url: "" };
+
+    if (parsed.bucket === "foto-laporan") {
+      const { data, error } = await supabaseClient.storage
+        .from(parsed.bucket)
+        .createSignedUrl(parsed.path, 3600);
+      if (error) {
+        console.warn("URL foto laporan tidak dapat dibuat:", row.id, error.message);
+        return { ...row, _foto_display_url: "" };
+      }
+      return { ...row, _foto_display_url: data?.signedUrl || "" };
+    }
+
+    const { data } = supabaseClient.storage.from(parsed.bucket).getPublicUrl(parsed.path);
+    return { ...row, _foto_display_url: data?.publicUrl || "" };
+  }));
 }
 
 function renderReports() {
@@ -1081,7 +1128,7 @@ async function handleModalSubmit(event) {
 
     if (!updatedRows || updatedRows.length === 0) {
       throw new Error(
-        "Supabase tidak mengembalikan baris yang diperbarui. Periksa ID laporan serta kebijakan RLS UPDATE dan SELECT untuk akun admin."
+        "Tidak ada baris laporan yang diperbarui. Biasanya ini karena policy RLS UPDATE tidak mengizinkan akun admin, ID tidak cocok, atau akun admin tidak memiliki akses SELECT ke baris tersebut. Periksa policy UPDATE dan SELECT di Supabase."
       );
     }
 
@@ -1100,7 +1147,7 @@ async function handleModalSubmit(event) {
       throw new Error(`Status tersimpan, tetapi daftar belum bisa diperbarui: ${refreshError.message}`);
     }
 
-    laporanData = freshRows || [];
+    laporanData = await hydrateReportPhotoUrls(freshRows || []);
     renderDashboard();
     renderReports();
 
