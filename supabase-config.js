@@ -1,8 +1,9 @@
+
 /* =====================================================
    SiLaporFasum - Supabase Configuration
 ===================================================== */
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 
-// Ganti "ISI_PUBLISHABLE_KEY_KAMU" dengan anon key asli dari project Supabase Anda
-const SUPABASE_ANON_KEY = "ISI_PUBLISHABLE_KEY_KAMU";
+const SUPABASE_ANON_KEY =
+  "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
