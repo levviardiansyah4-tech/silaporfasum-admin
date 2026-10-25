@@ -905,7 +905,14 @@ async function handleReportTableClick(event) {
         throw error;
       }
       if (!data || data.length === 0) {
-        throw new Error("Tidak ada baris yang terhapus. Pastikan login memakai email admin yang diizinkan dan policy DELETE serta SELECT RLS sudah aktif.");
+        const { data: authData } = await supabaseClient.auth.getUser();
+        const emailAktif = authData?.user?.email || currentUser?.email || "tidak diketahui";
+        console.error("DELETE tidak mengembalikan baris. Periksa email login, ID, dan policy RLS.", {
+          emailAktif,
+          idLaporan: id,
+          jumlahBarisKembali: data?.length ?? 0
+        });
+        throw new Error(`Tidak ada baris yang terhapus untuk ID ${id}. Email login terdeteksi: ${emailAktif}. Pastikan email ini diizinkan policy DELETE di Supabase dan laporan dengan ID tersebut masih ada.`);
       }
       showToast(`Laporan #${id} berhasil dihapus.`);
       await loadData();

@@ -24,3 +24,10 @@ CATATAN SUPABASE
 - SQL membatasi DELETE hanya untuk pengguna login dengan email admin@gmail.com. Jika email admin yang dipakai berbeda, ubah email di SQL terlebih dahulu.
 - Pastikan akun admin juga memiliki policy SELECT pada public.laporan agar aplikasi bisa memverifikasi penghapusan.
 - Setelah itu login ulang ke halaman admin dan tes hapus satu laporan uji.
+
+
+PEMERIKSAAN JIKA MASIH GAGAL
+- Klik Hapus lalu lihat email login yang tampil pada pesan error.
+- Email tersebut harus sama dengan email yang diizinkan pada SQL_PERBAIKAN_HAPUS.sql (default: admin@gmail.com).
+- Pastikan SQL dijalankan pada project Supabase yang sama dengan URL di admin.js.
+- Jika email terdeteksi berbeda, ubah email di kedua policy SQL, jalankan ulang SQL, lalu login ulang ke website admin.
