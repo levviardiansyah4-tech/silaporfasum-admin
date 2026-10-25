@@ -1008,7 +1008,7 @@ function openDetail(id) {
         ` : `<p class="photo-missing">Belum ada foto atau kolom foto_url masih kosong.</p>`}
       </div>
 
-      <form id="updateLaporanForm" class="detail-full" onsubmit="handleModalSubmit(event); return false;">
+      <form id="updateLaporanForm" class="detail-full" onsubmit="return false;">
         <input type="hidden" name="id"
           value="${escapeHTML(getLaporanId(row))}">
 
@@ -1061,7 +1061,7 @@ function openDetail(id) {
           <button type="button" class="btn secondary" data-close>
             Tutup
           </button>
-          <button type="submit" class="btn primary">
+          <button type="button" id="saveLaporanChangesBtn" class="btn primary">
             Simpan Perubahan
           </button>
         </div>
@@ -1069,8 +1069,11 @@ function openDetail(id) {
     </div>
   `;
 
-  // Submit ditangani oleh onsubmit pada form dinamis agar handler selalu
-  // terpasang meskipun isi modal dibuat ulang dengan innerHTML.
+  // Tombol simpan memakai click handler langsung; tidak ada native POST ke GitHub Pages.
+  const saveButton = $("saveLaporanChangesBtn");
+  if (updateForm && saveButton) {
+    saveButton.addEventListener("click", handleSaveLaporanClick);
+  }
 
   if ($("detailModal")) $("detailModal").hidden = false;
 }
@@ -1078,6 +1081,22 @@ function openDetail(id) {
 /* =====================================================
    SIMPAN PERUBAHAN LAPORAN
 ===================================================== */
+
+function handleSaveLaporanClick(event) {
+  event.preventDefault();
+  const form = event.currentTarget.closest("#updateLaporanForm");
+  if (!form) {
+    showToast("Form laporan tidak ditemukan. Tutup detail lalu buka kembali.", "error");
+    return;
+  }
+
+  // Berikan form sebagai target agar handler validasi dan penyimpanan yang sama dipakai.
+  handleModalSubmit({
+    target: form,
+    preventDefault() {},
+    stopPropagation() {}
+  });
+}
 
 async function handleModalSubmit(event) {
   if (event.target.id !== "updateLaporanForm") return;
