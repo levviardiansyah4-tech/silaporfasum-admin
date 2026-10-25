@@ -16,3 +16,11 @@ CATATAN SUPABASE
 - Jika foto masih gagal, buka Console browser. Pesan `URL foto laporan tidak dapat dibuat` biasanya berarti policy Storage atau path file tidak cocok.
 - Jika status gagal disimpan dan muncul pesan tidak ada baris yang diperbarui, cek policy RLS UPDATE dan SELECT pada tabel `public.laporan` untuk akun admin serta pastikan ID laporan cocok. Kode frontend tidak dapat mengubah policy database.
 - Jangan membuat policy UPDATE/SELECT terbuka untuk semua pengguna tanpa pembatasan peran.
+
+
+5. PERBAIKAN FITUR HAPUS
+- Buka Supabase Dashboard > SQL Editor.
+- Buka file SQL_PERBAIKAN_HAPUS.sql dari ZIP ini, salin seluruh isinya, lalu jalankan (Run).
+- SQL membatasi DELETE hanya untuk pengguna login dengan email admin@gmail.com. Jika email admin yang dipakai berbeda, ubah email di SQL terlebih dahulu.
+- Pastikan akun admin juga memiliki policy SELECT pada public.laporan agar aplikasi bisa memverifikasi penghapusan.
+- Setelah itu login ulang ke halaman admin dan tes hapus satu laporan uji.

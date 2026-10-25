@@ -895,12 +895,17 @@ async function handleReportTableClick(event) {
     try {
       const { data, error } = await supabaseClient
         .from("laporan")
-        .delete()
+        .delete({ count: "exact" })
         .eq("id", id)
         .select("id");
-      if (error) throw error;
+      if (error) {
+        if (error.code === "42501" || /row-level security|permission denied/i.test(error.message || "")) {
+          throw new Error("Akun ini tidak diizinkan menghapus laporan. Jalankan SQL policy DELETE admin pada file SQL_PERBAIKAN_HAPUS.sql di Supabase.");
+        }
+        throw error;
+      }
       if (!data || data.length === 0) {
-        throw new Error("Laporan tidak terhapus. Periksa kebijakan DELETE (RLS) untuk admin.");
+        throw new Error("Tidak ada baris yang terhapus. Pastikan login memakai email admin yang diizinkan dan policy DELETE serta SELECT RLS sudah aktif.");
       }
       showToast(`Laporan #${id} berhasil dihapus.`);
       await loadData();
