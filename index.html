@@ -238,6 +238,13 @@
 
       <!-- DATA LAPORAN -->
       <section id="reportsView" class="view" hidden>
+        <div class="status-tabs" role="group" aria-label="Filter cepat status laporan">
+          <button type="button" class="status-tab active" data-status-tab="">Semua Laporan <span id="tabCountAll">0</span></button>
+          <button type="button" class="status-tab" data-status-tab="Laporan Dikirim">Laporan Dikirim <span id="tabCountSent">0</span></button>
+          <button type="button" class="status-tab" data-status-tab="Diverifikasi">Verifikasi <span id="tabCountVerify">0</span></button>
+          <button type="button" class="status-tab" data-status-tab="Sedang Diproses">Sedang Diproses <span id="tabCountProcess">0</span></button>
+          <button type="button" class="status-tab" data-status-tab="Selesai Diperbaiki">Selesai Diperbaiki <span id="tabCountDone">0</span></button>
+        </div>
         <div class="toolbar">
           <div class="searchbox">
             <span>⌕</span>

@@ -222,3 +222,69 @@ tbody tr:hover{background:#fbfdff}
   .table-wrap{border-radius:14px}
   .donut-chart{width:180px;height:180px}
 }
+
+
+/* SiLaporFasum Admin 2027–2030: status workflow, foto, dan aksi */
+.status-tabs{display:flex;gap:9px;overflow-x:auto;padding:3px 1px 8px;scrollbar-width:thin}
+.status-tab{flex:0 0 auto;display:inline-flex;align-items:center;gap:10px;padding:11px 14px;border:1px solid var(--line-strong);border-radius:13px;background:#fff;color:#526078;font-size:12px;font-weight:750;white-space:nowrap;transition:.18s ease}
+.status-tab span{display:inline-grid;place-items:center;min-width:24px;height:23px;padding:0 6px;border-radius:8px;background:#f0f3f8;color:#59677d;font-size:10px}
+.status-tab:hover{border-color:#a9bff7;background:#f8faff}
+.status-tab.active{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 7px 18px #285fe82b}
+.status-tab.active span{background:#ffffff2a;color:#fff}
+.report-thumb{display:block;width:76px;height:58px;object-fit:cover;border-radius:10px;border:1px solid var(--line-strong);background:#f1f4f8;transition:transform .15s ease}
+.report-thumb:hover{transform:scale(1.05)}
+.photo-missing{display:inline-block;max-width:95px;color:#8993a3;font-size:10px;line-height:1.35}
+.row-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.btn.danger{background:#fff0f0;border:1px solid #ffd3d3;color:#b42323}
+.btn.danger:hover{background:#ffe4e4}
+#reportsTable table{min-width:1050px}
+#reportsTable th,#reportsTable td{vertical-align:middle}
+@media(max-width:900px){
+ .main-area{padding:18px}
+ .toolbar{grid-template-columns:1fr 1fr}
+ .toolbar .searchbox{grid-column:1/-1}
+ .status-tabs{margin-right:-4px}
+}
+@media(max-width:600px){
+ .main-area{padding:12px}
+ .toolbar{grid-template-columns:1fr}
+ .toolbar .searchbox{grid-column:auto}
+ .status-tab{padding:10px 12px}
+ .card{padding:15px}
+ .report-thumb{width:62px;height:50px}
+}
+
+/* Penyempurnaan akses admin: filter terlihat dan aksi tanpa geser horizontal */
+.status-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;gap:8px}
+.status-tab{justify-content:center;white-space:normal;min-height:46px;text-align:center;line-height:1.35}
+#reportsTable{overflow:visible}
+#reportsTable table{min-width:0;table-layout:auto}
+#reportsTable th,#reportsTable td{padding:11px 10px}
+#reportsTable td:last-child{min-width:140px}
+.row-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:92px}
+.row-actions .btn{width:100%;justify-content:center;white-space:nowrap}
+@media(max-width:1100px){
+ .status-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #reportsTable th,#reportsTable td{padding:9px 7px;font-size:11px}
+}
+@media(max-width:760px){
+ .status-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #reportsTable table,#reportsTable tbody,#reportsTable tr,#reportsTable td{display:block;width:100%}
+ #reportsTable thead{display:none}
+ #reportsTable tbody{display:grid;gap:12px}
+ #reportsTable tr{border:1px solid var(--line-strong);border-radius:14px;background:#fff;padding:8px 13px;box-shadow:0 3px 12px #14213d08}
+ #reportsTable td{display:grid;grid-template-columns:minmax(92px,34%) minmax(0,1fr);gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+ #reportsTable td:last-child{border-bottom:0;min-width:0}
+ #reportsTable td::before{content:attr(data-label);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.35px;color:var(--muted)}
+ #reportsTable td[data-label="Foto Laporan"]{align-items:start}
+ #reportsTable td[data-label="Aksi"]{grid-template-columns:1fr}
+ #reportsTable td[data-label="Aksi"]::before{margin-bottom:2px}
+ .row-actions{display:grid;grid-template-columns:1fr 1fr;min-width:0;gap:8px}
+ .row-actions .btn{min-height:40px}
+ .report-thumb{width:100px;height:76px}
+}
+@media(max-width:420px){
+ .status-tabs{grid-template-columns:1fr 1fr}
+ #reportsTable td{grid-template-columns:88px minmax(0,1fr)}
+ .row-actions{grid-template-columns:1fr}
+}

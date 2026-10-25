@@ -402,7 +402,20 @@ function bindEvents() {
   $("refreshBtn")?.addEventListener("click", loadData);
 
   $("searchInput")?.addEventListener("input", renderReports);
-  $("statusFilter")?.addEventListener("change", renderReports);
+  $("statusFilter")?.addEventListener("change", () => {
+    document.querySelectorAll("[data-status-tab]").forEach((tab) =>
+      tab.classList.toggle("active", (tab.dataset.statusTab || "") === ($("statusFilter")?.value || ""))
+    );
+    renderReports();
+  });
+  document.querySelectorAll("[data-status-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const value = button.dataset.statusTab || "";
+      if ($("statusFilter")) $("statusFilter").value = value;
+      document.querySelectorAll("[data-status-tab]").forEach((tab) => tab.classList.toggle("active", tab === button));
+      renderReports();
+    });
+  });
   $("categoryFilter")?.addEventListener("change", renderReports);
   $("petugasFilter")?.addEventListener("change", renderReports);
 
@@ -691,6 +704,19 @@ function renderDashboard() {
    DAFTAR LAPORAN
 ===================================================== */
 
+function getReportPhotoUrl(row) {
+  const raw = getField(row, ["foto_url", "foto_laporan", "photo_url"], "");
+  if (!raw || raw === "-") return "";
+  const value = String(raw).trim();
+  if (/^https?:\/\//i.test(value)) return value;
+  // Jika database menyimpan path file, bentuk URL publik bucket foto-laporan.
+  const cleanPath = value.replace(/^\/+/, "").replace(/^foto-laporan\//, "");
+  if (supabaseClient?.storage) {
+    return supabaseClient.storage.from("foto-laporan").getPublicUrl(cleanPath).data.publicUrl || "";
+  }
+  return "";
+}
+
 function renderReports() {
   const query = ($("searchInput")?.value || "").toLowerCase().trim();
   const status = $("statusFilter")?.value || "";
@@ -704,7 +730,9 @@ function renderReports() {
       getKategori(row),
       getLokasi(row),
       getDeskripsi(row),
-      getStatus(row)
+      getStatus(row),
+      getField(row, ["kontak"], ""),
+      getField(petugasData.find((petugas) => String(petugas.id) === String(getPetugasId(row))), ["nama"], "")
     ].join(" ").toLowerCase();
 
     return (
@@ -718,6 +746,13 @@ function renderReports() {
   if ($("resultCount")) {
     $("resultCount").textContent = `${filtered.length} laporan`;
   }
+
+  const countStatus = (value) => laporanData.filter((row) => value ? getStatus(row) === value : true).length;
+  if ($("tabCountAll")) $("tabCountAll").textContent = countStatus("");
+  if ($("tabCountSent")) $("tabCountSent").textContent = countStatus("Laporan Dikirim");
+  if ($("tabCountVerify")) $("tabCountVerify").textContent = countStatus("Diverifikasi");
+  if ($("tabCountProcess")) $("tabCountProcess").textContent = countStatus("Sedang Diproses");
+  if ($("tabCountDone")) $("tabCountDone").textContent = countStatus("Selesai Diperbaiki");
 
   const metrics = getStatusMetrics(filtered);
   const assignedCount = countAssignedReports(filtered);
@@ -748,6 +783,7 @@ function renderReports() {
         <thead>
           <tr>
             <th>ID</th>
+            <th>Foto</th>
             <th>Pelapor</th>
             <th>Kategori</th>
             <th>Lokasi</th>
@@ -759,18 +795,22 @@ function renderReports() {
         <tbody>
           ${filtered.map((row) => `
             <tr>
-              <td>#${escapeHTML(getLaporanId(row))}</td>
-              <td>${escapeHTML(getNamaPelapor(row))}</td>
-              <td>${escapeHTML(getKategori(row))}</td>
-              <td>${escapeHTML(getLokasi(row))}</td>
-              <td>${escapeHTML(formatDate(getTanggal(row)))}</td>
-              <td>${statusBadge(getStatus(row))}</td>
-              <td>
-                <button class="btn small primary"
-                  data-action="detail"
-                  data-id="${escapeHTML(getLaporanId(row))}">
-                  Detail
-                </button>
+              <td data-label="ID Laporan">#${escapeHTML(getLaporanId(row))}</td>
+              <td data-label="Foto Laporan">${getReportPhotoUrl(row) ? `<a href="${escapeHTML(getReportPhotoUrl(row))}" target="_blank" rel="noopener noreferrer"><img class="report-thumb" src="${escapeHTML(getReportPhotoUrl(row))}" alt="Foto laporan" loading="lazy" onerror="this.outerHTML='<span class=&quot;photo-missing&quot;>Foto tidak tersedia</span>'"></a>` : `<span class="photo-missing">Belum ada foto</span>`}</td>
+              <td data-label="Pelapor">${escapeHTML(getNamaPelapor(row))}</td>
+              <td data-label="Kategori">${escapeHTML(getKategori(row))}</td>
+              <td data-label="Lokasi">${escapeHTML(getLokasi(row))}</td>
+              <td data-label="Tanggal">${escapeHTML(formatDate(getTanggal(row)))}</td>
+              <td data-label="Status">${statusBadge(getStatus(row))}</td>
+              <td data-label="Aksi">
+                <div class="row-actions">
+                  <button class="btn small primary"
+                    data-action="detail"
+                    data-id="${escapeHTML(getLaporanId(row))}">Detail</button>
+                  <button class="btn small danger"
+                    data-action="delete"
+                    data-id="${escapeHTML(getLaporanId(row))}">Hapus</button>
+                </div>
               </td>
             </tr>
           `).join("")}
@@ -779,11 +819,43 @@ function renderReports() {
     : renderEmpty("Tidak ada laporan yang sesuai dengan pencarian.");
 }
 
-function handleReportTableClick(event) {
-  const button = event.target.closest("[data-action='detail']");
+async function handleReportTableClick(event) {
+  const button = event.target.closest("[data-action]");
   if (!button) return;
 
-  openDetail(button.dataset.id);
+  if (button.dataset.action === "detail") {
+    openDetail(button.dataset.id);
+    return;
+  }
+
+  if (button.dataset.action === "delete") {
+    const id = button.dataset.id;
+    const row = laporanData.find((item) => String(getLaporanId(item)) === String(id));
+    if (!row) return showToast("Data laporan tidak ditemukan.", "error");
+    const ok = window.confirm(`Hapus laporan #${id}? Data yang dihapus tidak dapat dipulihkan.`);
+    if (!ok) return;
+
+    button.disabled = true;
+    button.textContent = "Menghapus...";
+    try {
+      const { data, error } = await supabaseClient
+        .from("laporan")
+        .delete()
+        .eq("id", id)
+        .select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Laporan tidak terhapus. Periksa kebijakan DELETE (RLS) untuk admin.");
+      }
+      showToast(`Laporan #${id} berhasil dihapus.`);
+      await loadData();
+    } catch (error) {
+      console.error("Hapus laporan gagal:", error);
+      showToast(`Gagal menghapus: ${error.message}`, "error");
+      button.disabled = false;
+      button.textContent = "Hapus";
+    }
+  }
 }
 
 /* =====================================================
