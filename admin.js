@@ -1008,7 +1008,7 @@ function openDetail(id) {
         ` : `<p class="photo-missing">Belum ada foto atau kolom foto_url masih kosong.</p>`}
       </div>
 
-      <form id="updateLaporanForm" class="detail-full" onsubmit="event.preventDefault();">
+      <form id="updateLaporanForm" class="detail-full" onsubmit="handleModalSubmit(event); return false;">
         <input type="hidden" name="id"
           value="${escapeHTML(getLaporanId(row))}">
 
@@ -1069,12 +1069,8 @@ function openDetail(id) {
     </div>
   `;
 
-  // Bind directly to the newly-created form. This avoids relying only on
-  // delegated modal listeners after innerHTML replaces the form content.
-  const updateForm = $("updateLaporanForm");
-  if (updateForm) {
-    updateForm.addEventListener("submit", handleModalSubmit);
-  }
+  // Submit ditangani oleh onsubmit pada form dinamis agar handler selalu
+  // terpasang meskipun isi modal dibuat ulang dengan innerHTML.
 
   if ($("detailModal")) $("detailModal").hidden = false;
 }
