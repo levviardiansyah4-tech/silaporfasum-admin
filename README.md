@@ -25,3 +25,12 @@ Paket ini berisi pembaruan tampilan admin dengan fokus pada UI/UX:
 
 ## Catatan
 Diagram dibuat dengan HTML/CSS/JS murni, tanpa library eksternal, sehingga lebih ringan dan tidak mengubah mekanisme data yang sudah berjalan.
+
+
+## Perbaikan status dan foto (diagnostik)
+
+- Simpan status sekarang memeriksa baris yang dikembalikan Supabase; jika nol baris atau ditolak RLS, pesan kesalahan ditampilkan.
+- Setelah simpan, data laporan dimuat ulang dari Supabase.
+- Resolver foto menerima URL penuh atau path relatif dalam bucket `foto-laporan`.
+
+Penting: kode frontend tidak dapat melewati Row Level Security. Jika muncul error permission/RLS, atur policy UPDATE secara aman untuk akun admin di Supabase. Jangan gunakan service-role key di browser.

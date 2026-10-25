@@ -708,10 +708,18 @@ function getReportPhotoUrl(row) {
   const raw = getField(row, ["foto_url", "foto_laporan", "photo_url"], "");
   if (!raw || raw === "-") return "";
   const value = String(raw).trim();
+
+  // Jika database sudah menyimpan URL, gunakan URL tersebut.
   if (/^https?:\/\//i.test(value)) return value;
-  // Jika database menyimpan path file, bentuk URL publik bucket foto-laporan.
-  const cleanPath = value.replace(/^\/+/, "").replace(/^foto-laporan\//, "");
-  if (supabaseClient?.storage) {
+
+  // Kolom foto kadang menyimpan path seperti "foto-laporan/ID/file.jpg"
+  // atau hanya "ID/file.jpg". Bucket yang digunakan adalah foto-laporan.
+  const cleanPath = value
+    .replace(/^\/+/, "")
+    .replace(/^storage\/v1\/object\/(public|sign)\/foto-laporan\//i, "")
+    .replace(/^foto-laporan\//i, "");
+
+  if (supabaseClient?.storage && cleanPath) {
     return supabaseClient.storage.from("foto-laporan").getPublicUrl(cleanPath).data.publicUrl || "";
   }
   return "";
@@ -888,7 +896,7 @@ function openDetail(id) {
       </option>
     `).join("");
 
-  const imageUrl = getField(row, ["foto_url"], "");
+  const imageUrl = getReportPhotoUrl(row);
 
   if (!$("modalBody")) return;
 
@@ -929,18 +937,16 @@ function openDetail(id) {
         <p>${escapeHTML(getDeskripsi(row))}</p>
       </div>
 
-      ${imageUrl && /^https?:\/\//i.test(String(imageUrl)) ? `
-        <div class="detail-item detail-full">
-          <small>Foto laporan</small>
-          <a href="${escapeHTML(imageUrl)}"
-             target="_blank" rel="noopener noreferrer">
-            Buka foto laporan
-          </a>
-          <img src="${escapeHTML(imageUrl)}"
-            alt="Foto laporan"
-            style="max-width:100%;height:auto;border-radius:12px;margin-top:10px">
-        </div>
-      ` : ""}
+      <div class="detail-item detail-full report-photo-detail">
+        <small>Foto laporan dari masyarakat</small>
+        ${imageUrl ? `
+          <a href="${escapeHTML(imageUrl)}" target="_blank" rel="noopener noreferrer">Buka foto ukuran penuh</a>
+          <img src="${escapeHTML(imageUrl)}" alt="Foto laporan dari masyarakat"
+            style="display:block;width:100%;max-width:560px;max-height:420px;object-fit:contain;background:#f3f6fb;border-radius:12px;margin-top:10px"
+            onerror="this.style.display='none';this.nextElementSibling.hidden=false">
+          <p hidden class="photo-missing">Foto gagal dimuat. Periksa URL/path file dan izin bucket foto-laporan di Supabase.</p>
+        ` : `<p class="photo-missing">Belum ada foto atau kolom foto_url masih kosong.</p>`}
+      </div>
 
       <form id="updateLaporanForm" class="detail-full">
         <input type="hidden" name="id"
@@ -1012,15 +1018,29 @@ function openDetail(id) {
 
 async function handleModalSubmit(event) {
   if (event.target.id !== "updateLaporanForm") return;
-
   event.preventDefault();
+
+  if (!supabaseClient) {
+    showToast("Koneksi Supabase belum siap. Muat ulang halaman.", "error");
+    return;
+  }
+  if (!currentUser) {
+    showToast("Sesi admin tidak ditemukan. Silakan login kembali.", "error");
+    return;
+  }
 
   const form = event.target;
   const formData = new FormData(form);
-  const id = formData.get("id");
+  const id = String(formData.get("id") || "").trim();
+  const newStatus = String(formData.get("status") || "").trim();
+
+  if (!id || !newStatus) {
+    showToast("ID laporan atau status belum terisi.", "error");
+    return;
+  }
 
   const updateData = {
-    status: formData.get("status"),
+    status: newStatus,
     petugas_id: formData.get("petugas_id") || null,
     tanggal_penugasan: formData.get("tanggal_penugasan") || null,
     tanggal_target: formData.get("tanggal_target") || null,
@@ -1028,38 +1048,73 @@ async function handleModalSubmit(event) {
   };
 
   const button = form.querySelector("button[type='submit']");
-
+  const originalText = button?.textContent || "Simpan Perubahan";
   if (button) {
     button.disabled = true;
     button.textContent = "Menyimpan...";
   }
 
   try {
-    const { data, error } = await supabaseClient
+    // Update only the selected report, then request the saved row back.
+    const { data: updatedRows, error: updateError } = await supabaseClient
       .from("laporan")
       .update(updateData)
       .eq("id", id)
-      .select();
+      .select("id,status,petugas_id,tanggal_penugasan,tanggal_target,catatan_penugasan");
 
-    if (error) throw error;
+    if (updateError) {
+      const hint = updateError.code === "42501"
+        ? " Izin RLS UPDATE untuk akun admin kemungkinan belum diberikan."
+        : "";
+      throw new Error(`${updateError.message}${hint}`);
+    }
 
-    if (!data || data.length === 0) {
+    if (!updatedRows || updatedRows.length === 0) {
       throw new Error(
-        "Laporan tidak diperbarui. Periksa izin UPDATE pada RLS."
+        "Supabase tidak mengembalikan baris yang diperbarui. Periksa ID laporan serta kebijakan RLS UPDATE dan SELECT untuk akun admin."
       );
     }
 
-    if ($("detailModal")) $("detailModal").hidden = true;
+    const savedRow = updatedRows[0];
+    if (String(savedRow.status) !== newStatus) {
+      throw new Error(`Status yang terbaca setelah simpan adalah "${savedRow.status}", bukan "${newStatus}".`);
+    }
 
-    showToast("Perubahan laporan berhasil disimpan.");
+    // Re-fetch all rows so dashboard and list use the actual database state.
+    const { data: freshRows, error: refreshError } = await supabaseClient
+      .from("laporan")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (refreshError) {
+      throw new Error(`Status tersimpan, tetapi daftar belum bisa diperbarui: ${refreshError.message}`);
+    }
+
+    laporanData = freshRows || [];
+    renderDashboard();
+    renderReports();
+
+    const freshSelected = laporanData.find(
+      (row) => String(getLaporanId(row)) === id
+    );
+    if (freshSelected) selectedLaporan = freshSelected;
+
+    if ($("detailModal")) $("detailModal").hidden = true;
+    showToast(`Status berhasil disimpan: ${savedRow.status}`);
     await loadData();
   } catch (error) {
-    console.error("Update laporan gagal:", error);
+    console.error("Update laporan gagal:", {
+      message: error?.message,
+      code: error?.code,
+      details: error?.details,
+      hint: error?.hint,
+      userId: currentUser?.id
+    });
     showToast(`Gagal menyimpan perubahan: ${error.message}`, "error");
   } finally {
     if (button) {
       button.disabled = false;
-      button.textContent = "Simpan Perubahan";
+      button.textContent = originalText;
     }
   }
 }
