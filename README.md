@@ -16,7 +16,15 @@ Paket ini disusun agar file situs berada langsung di root repository GitHub Page
 URL dan publishable key berada di bagian atas `admin.js`. Jangan masukkan `service_role` atau secret key ke website.
 
 ## Fitur
-Login Supabase Auth, dashboard laporan, pencarian/filter, detail laporan, update status, penugasan petugas, daftar petugas, serta foto laporan.
+Login Supabase Auth, dashboard laporan, pencarian/filter, detail laporan, update status, penugasan petugas, daftar petugas, foto laporan, dan pembaruan otomatis daftar/dashboard saat ada perubahan laporan di database.
+
+## Aktifkan pembaruan otomatis (Realtime)
+1. Buka **Supabase → SQL Editor** pada project yang sama.
+2. Buka file `SQL_PERBAIKAN_REALTIME.sql`, salin isinya, lalu jalankan.
+3. Pastikan akun admin memiliki izin `SELECT` dan `UPDATE` melalui Row Level Security (RLS) pada tabel `public.laporan`.
+4. Setelah file website diperbarui di GitHub Pages, lakukan hard refresh (`Ctrl+Shift+R`).
+
+Jika Realtime belum diaktifkan, tombol **Simpan Perubahan** tetap akan menyimpan perubahan dan memperbarui tampilan setelah database mengonfirmasi; pembaruan otomatis dari kiriman/perubahan lain membutuhkan Realtime aktif.
 
 ## Jika fitur database gagal
 File frontend tidak dapat melewati Row Level Security (RLS). Pastikan akun login mempunyai policy yang sesuai untuk SELECT/UPDATE/INSERT pada tabel `public.laporan` dan `public.petugas`, serta policy Storage untuk membaca foto. Periksa Console/Network browser untuk pesan error yang spesifik.

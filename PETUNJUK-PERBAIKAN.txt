@@ -7,13 +7,15 @@ harus terlihat langsung pada tab Code, sejajar dengan `admin.js` dan file CSS.
 CARA PASANG
 1. Ekstrak ZIP.
 2. Unggah file index.html, admin.css, admin-petugas.css, admin.js, README.md,
-   dan SQL_PERBAIKAN_HAPUS.sql langsung ke root repository GitHub.
+   serta SQL_PERBAIKAN_HAPUS.sql dan SQL_PERBAIKAN_REALTIME.sql langsung ke root repository GitHub.
 3. Commit ke branch main.
 4. Settings > Pages: Deploy from a branch, branch main, folder /(root).
 5. Tunggu deployment selesai. Gunakan URL yang ditampilkan pada Settings > Pages.
 6. Jika nama repository berakhir dengan titik, buka Settings > General dan ganti
    nama menjadi `silaporfasum-admin`, lalu pakai URL baru yang ditampilkan Pages.
-7. Hard refresh browser (Ctrl+Shift+R / Cmd+Shift+R).
+7. Untuk pembaruan otomatis saat laporan baru masuk atau berubah dari aplikasi lain,
+   buka Supabase > SQL Editor lalu jalankan isi `SQL_PERBAIKAN_REALTIME.sql`.
+8. Hard refresh browser (Ctrl+Shift+R / Cmd+Shift+R).
 
 KONFIGURASI
 URL Supabase dan publishable key ada di bagian atas admin.js. File
@@ -22,7 +24,8 @@ Jangan pernah memasukkan service_role/secret key ke frontend.
 
 CATATAN FITUR
 Frontend menyediakan login, dashboard, laporan, filter, detail, update status,
-penugasan, petugas, dan foto. Izin database tetap harus benar di Supabase RLS.
+penugasan, petugas, foto, serta refresh otomatis laporan melalui Supabase Realtime.
+Izin database tetap harus benar di Supabase RLS.
 Jika login berhasil tetapi data tidak muncul/berubah, periksa pesan error Console
 dan policy SELECT/UPDATE/INSERT pada tabel terkait serta policy Storage.
 

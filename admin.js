@@ -12,6 +12,10 @@ let petugasData = [];
 let currentUser = null;
 let selectedLaporan = null;
 let loadingData = false;
+let pendingSilentRefresh = false;
+let reportRealtimeChannel = null;
+let realtimeRefreshTimer = null;
+let isSavingLaporan = false;
 
 /* =====================================================
    HELPER
@@ -362,6 +366,7 @@ async function initializeAdmin() {
       }
 
       if (event === "SIGNED_OUT") {
+        unsubscribeFromReportChanges();
         currentUser = null;
         laporanData = [];
         petugasData = [];
@@ -503,6 +508,7 @@ async function handleLogout() {
 
     if (error) throw error;
 
+    unsubscribeFromReportChanges();
     currentUser = null;
     laporanData = [];
     petugasData = [];
@@ -527,6 +533,7 @@ async function showApplication() {
   }
 
   await loadData();
+  subscribeToReportChanges();
 }
 
 /* =====================================================
@@ -565,16 +572,21 @@ function showView(viewName) {
    MEMUAT DATA
 ===================================================== */
 
-async function loadData() {
+async function loadData(options = {}) {
+  const { silent = false } = options;
+
   if (!supabaseClient) {
-    showToast("Koneksi Supabase belum siap.", "error");
+    if (!silent) showToast("Koneksi Supabase belum siap.", "error");
     return;
   }
 
-  if (loadingData) return;
+  if (loadingData) {
+    if (silent) pendingSilentRefresh = true;
+    return;
+  }
   loadingData = true;
 
-  const button = $("refreshBtn");
+  const button = silent ? null : $("refreshBtn");
 
   if (button) {
     button.disabled = true;
@@ -594,7 +606,6 @@ async function loadData() {
     }
 
     laporanData = await hydrateReportPhotoUrls(laporanResult.data || []);
-
     renderDashboard();
     renderReports();
 
@@ -605,32 +616,32 @@ async function loadData() {
 
     if (petugasResult.error) {
       console.error("Gagal memuat tabel petugas:", petugasResult.error);
-
       petugasData = [];
-
       renderDashboard();
       renderPetugas();
       renderPetugasFilter();
 
-      showToast(
-        `Laporan berhasil dimuat, tetapi petugas gagal dimuat: ${petugasResult.error.message}`,
-        "error"
-      );
-
+      if (!silent) {
+        showToast(
+          `Laporan berhasil dimuat, tetapi petugas gagal dimuat: ${petugasResult.error.message}`,
+          "error"
+        );
+      }
       return;
     }
 
     petugasData = petugasResult.data || [];
-
     renderDashboard();
     renderReports();
     renderPetugas();
     renderPetugasFilter();
 
-    showToast(`Data berhasil dimuat. Total laporan: ${laporanData.length}.`);
+    if (!silent) {
+      showToast(`Data berhasil dimuat. Total laporan: ${laporanData.length}.`);
+    }
   } catch (error) {
     console.error("Gagal memuat data:", error);
-    showToast(error.message, "error");
+    if (!silent) showToast(error.message, "error");
   } finally {
     loadingData = false;
 
@@ -638,6 +649,59 @@ async function loadData() {
       button.disabled = false;
       button.textContent = "↻ Muat ulang";
     }
+
+    if (pendingSilentRefresh) {
+      pendingSilentRefresh = false;
+      window.setTimeout(() => loadData({ silent: true }), 0);
+    }
+  }
+}
+
+/* =====================================================
+   PEMBARUAN OTOMATIS REALTIME
+===================================================== */
+
+function subscribeToReportChanges() {
+  if (!supabaseClient || !currentUser) return;
+
+  unsubscribeFromReportChanges();
+
+  reportRealtimeChannel = supabaseClient
+    .channel(`silapor-laporan-${currentUser.id}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "laporan" },
+      (payload) => {
+        console.info("Perubahan laporan diterima dari Supabase Realtime:", payload.eventType);
+        // Penyimpanan lokal melakukan refresh sendiri setelah database mengonfirmasi.
+        if (isSavingLaporan) return;
+
+        if (realtimeRefreshTimer) window.clearTimeout(realtimeRefreshTimer);
+        realtimeRefreshTimer = window.setTimeout(() => {
+          realtimeRefreshTimer = null;
+          void loadData({ silent: true });
+        }, 250);
+      }
+    )
+    .subscribe((status, error) => {
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        console.warn(
+          "Realtime laporan belum aktif. Data tetap dapat diperbarui melalui tombol Muat ulang.",
+          error || status
+        );
+      }
+    });
+}
+
+function unsubscribeFromReportChanges() {
+  if (realtimeRefreshTimer) {
+    window.clearTimeout(realtimeRefreshTimer);
+    realtimeRefreshTimer = null;
+  }
+
+  if (reportRealtimeChannel && supabaseClient) {
+    void supabaseClient.removeChannel(reportRealtimeChannel);
+    reportRealtimeChannel = null;
   }
 }
 
@@ -1070,6 +1134,7 @@ function openDetail(id) {
   `;
 
   // Tombol simpan memakai click handler langsung; tidak ada native POST ke GitHub Pages.
+  const updateForm = $("updateLaporanForm");
   const saveButton = $("saveLaporanChangesBtn");
   if (updateForm && saveButton) {
     saveButton.addEventListener("click", handleSaveLaporanClick);
@@ -1090,8 +1155,12 @@ function handleSaveLaporanClick(event) {
     return;
   }
 
-  // Berikan form sebagai target agar handler validasi dan penyimpanan yang sama dipakai.
-  handleModalSubmit({
+  if (typeof form.reportValidity === "function" && !form.reportValidity()) {
+    return;
+  }
+
+  // Gunakan alur penyimpanan yang sama tanpa mengirim form sebagai POST.
+  void handleModalSubmit({
     target: form,
     preventDefault() {},
     stopPropagation() {}
@@ -1114,6 +1183,7 @@ async function handleModalSubmit(event) {
 
   const form = event.target;
   if (form.dataset.saving === "true") return;
+
   const formData = new FormData(form);
   const id = String(formData.get("id") || "").trim();
   const newStatus = String(formData.get("status") || "").trim();
@@ -1128,25 +1198,26 @@ async function handleModalSubmit(event) {
     petugas_id: formData.get("petugas_id") || null,
     tanggal_penugasan: formData.get("tanggal_penugasan") || null,
     tanggal_target: formData.get("tanggal_target") || null,
-    catatan_penugasan: formData.get("catatan_penugasan") || null
+    catatan_penugasan: String(formData.get("catatan_penugasan") || "").trim() || null
   };
 
-  const button = form.querySelector("button[type='submit']");
+  const button = $("saveLaporanChangesBtn");
   const originalText = button?.textContent || "Simpan Perubahan";
   form.dataset.saving = "true";
+  isSavingLaporan = true;
   if (button) {
     button.disabled = true;
     button.textContent = "Menyimpan...";
   }
 
   try {
-    // Update only the selected report, then request the saved row back.
-    console.info("Menyimpan laporan ke Supabase", { id, status: newStatus });
+    console.info("Menyimpan perubahan laporan ke Supabase", { id, updateData });
+
     const { data: updatedRows, error: updateError } = await supabaseClient
       .from("laporan")
       .update(updateData)
       .eq("id", id)
-      .select("id,status,petugas_id,tanggal_penugasan,tanggal_target,catatan_penugasan");
+      .select("*");
 
     if (updateError) {
       const hint = updateError.code === "42501"
@@ -1157,7 +1228,7 @@ async function handleModalSubmit(event) {
 
     if (!updatedRows || updatedRows.length === 0) {
       throw new Error(
-        "Tidak ada baris laporan yang diperbarui. Biasanya ini karena policy RLS UPDATE tidak mengizinkan akun admin, ID tidak cocok, atau akun admin tidak memiliki akses SELECT ke baris tersebut. Periksa policy UPDATE dan SELECT di Supabase."
+        "Tidak ada baris laporan yang diperbarui. Periksa apakah policy SELECT dan UPDATE Supabase mengizinkan akun admin mengubah laporan ini."
       );
     }
 
@@ -1166,19 +1237,33 @@ async function handleModalSubmit(event) {
       throw new Error(`Status yang terbaca setelah simpan adalah "${savedRow.status}", bukan "${newStatus}".`);
     }
 
-    // Re-fetch all rows so dashboard and list use the actual database state.
+    // Ambil ulang data dari database agar tabel dan ringkasan memakai data terbaru.
     const { data: freshRows, error: refreshError } = await supabaseClient
       .from("laporan")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (refreshError) {
-      throw new Error(`Status tersimpan, tetapi daftar belum bisa diperbarui: ${refreshError.message}`);
+      // Update sudah dikonfirmasi Supabase; tetap perbarui tampilan dari baris tersimpan.
+      laporanData = laporanData.map((row) =>
+        String(getLaporanId(row)) === id ? { ...row, ...savedRow } : row
+      );
+      laporanData = await hydrateReportPhotoUrls(laporanData);
+      renderDashboard();
+      renderReports();
+      renderPetugasFilter();
+      if ($("detailModal")) $("detailModal").hidden = true;
+      showToast(
+        `Perubahan laporan #${id} tersimpan, tetapi daftar gagal dimuat ulang: ${refreshError.message}`,
+        "error"
+      );
+      return;
     }
 
     laporanData = await hydrateReportPhotoUrls(freshRows || []);
     renderDashboard();
     renderReports();
+    renderPetugasFilter();
 
     const freshSelected = laporanData.find(
       (row) => String(getLaporanId(row)) === id
@@ -1186,8 +1271,7 @@ async function handleModalSubmit(event) {
     if (freshSelected) selectedLaporan = freshSelected;
 
     if ($("detailModal")) $("detailModal").hidden = true;
-    showToast(`Status berhasil disimpan: ${savedRow.status}`);
-    await loadData();
+    showToast(`Perubahan laporan #${id} berhasil disimpan dan data telah diperbarui.`);
   } catch (error) {
     console.error("Update laporan gagal:", {
       message: error?.message,
@@ -1199,6 +1283,7 @@ async function handleModalSubmit(event) {
     showToast(`Gagal menyimpan perubahan: ${error.message}`, "error");
   } finally {
     form.dataset.saving = "false";
+    isSavingLaporan = false;
     if (button) {
       button.disabled = false;
       button.textContent = originalText;
