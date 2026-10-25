@@ -34,4 +34,3 @@ Diagram dibuat dengan HTML/CSS/JS murni, tanpa library eksternal, sehingga lebih
 - Resolver foto menerima URL penuh atau path relatif dalam bucket `foto-laporan`.
 
 Penting: kode frontend tidak dapat melewati Row Level Security. Jika muncul error permission/RLS, atur policy UPDATE secara aman untuk akun admin di Supabase. Jangan gunakan service-role key di browser.
-\n\nPerbaikan status: handler submit menahan navigasi GET, update memverifikasi hasil di Supabase, dan menampilkan error RLS secara jelas. Jalankan PERBAIKAN-RLS-ADMIN.sql hanya setelah memastikan admin memakai email admin@gmail.com. Foto: URL pada database dipakai apa adanya jika berupa URL penuh; jika masih 404 Bucket not found, bucket name/project URL di Supabase harus dicocokkan karena JavaScript tidak bisa memperbaiki bucket yang tidak ditemukan.\n

@@ -1,0 +1,8 @@
+HOTFIX FORM STATUS SiLaporFasum
+
+1. Upload semua file dari folder silaporfasum-admin.-main ke repository GitHub Pages admin, overwrite file lama.
+2. Pastikan admin.js di GitHub berisi komentar "Bind directly to the newly-created form".
+3. Hard refresh Ctrl+Shift+R. Setelah klik Simpan, URL tidak boleh berubah menjadi ?id=...&status=...; jika berubah, file terbaru belum terpasang atau JS tidak termuat.
+4. Jika update error, lihat Console dan toast. Kode memerlukan policy RLS UPDATE dan SELECT yang sesuai untuk akun admin.
+
+FOTO: admin.js memakai foto_url sebagai sumber foto. URL foto yang pernah diuji mengembalikan Bucket not found. Ini tidak bisa diselesaikan hanya dengan CSS/HTML. Pastikan URL foto mengarah ke bucket dan project Supabase yang benar. Buka Storage > bucket yang benar > file > Copy URL. Jangan ubah URL menjadi nama bucket foto-laporan kecuali nama bucket itu memang benar.
