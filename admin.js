@@ -439,7 +439,8 @@ function bindEvents() {
   $("petugasTable")?.addEventListener("click", handlePetugasTableClick);
 
   $("modalBody")?.addEventListener("click", handleModalClick);
-  $("modalBody")?.addEventListener("submit", handleModalSubmit);
+  // Form laporan ditangani langsung pada elemen yang dibuat di openDetail().
+  // Jangan pasang listener submit kedua di modalBody agar update tidak terpanggil dua kali.
 }
 
 /* =====================================================
@@ -1007,7 +1008,7 @@ function openDetail(id) {
         ` : `<p class="photo-missing">Belum ada foto atau kolom foto_url masih kosong.</p>`}
       </div>
 
-     <form id="updateLaporanForm" class="detail-full" onsubmit="return false;">
+      <form id="updateLaporanForm" class="detail-full" onsubmit="event.preventDefault();">
         <input type="hidden" name="id"
           value="${escapeHTML(getLaporanId(row))}">
 
@@ -1097,6 +1098,7 @@ async function handleModalSubmit(event) {
   }
 
   const form = event.target;
+  if (form.dataset.saving === "true") return;
   const formData = new FormData(form);
   const id = String(formData.get("id") || "").trim();
   const newStatus = String(formData.get("status") || "").trim();
@@ -1116,6 +1118,7 @@ async function handleModalSubmit(event) {
 
   const button = form.querySelector("button[type='submit']");
   const originalText = button?.textContent || "Simpan Perubahan";
+  form.dataset.saving = "true";
   if (button) {
     button.disabled = true;
     button.textContent = "Menyimpan...";
@@ -1180,6 +1183,7 @@ async function handleModalSubmit(event) {
     });
     showToast(`Gagal menyimpan perubahan: ${error.message}`, "error");
   } finally {
+    form.dataset.saving = "false";
     if (button) {
       button.disabled = false;
       button.textContent = originalText;
