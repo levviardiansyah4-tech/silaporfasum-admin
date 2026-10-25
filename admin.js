@@ -56,7 +56,7 @@ function showToast(message, type = "success") {
   showToast.timer = setTimeout(() => {
     toast.className = `toast ${type}`;
     toast.hidden = true;
-  }, 4000);
+  }, type === "error" ? 9000 : 4000);
 }
 
 function showLoginMessage(message) {
@@ -444,8 +444,8 @@ function bindEvents() {
   $("petugasTable")?.addEventListener("click", handlePetugasTableClick);
 
   $("modalBody")?.addEventListener("click", handleModalClick);
-  // Form laporan ditangani langsung pada elemen yang dibuat di openDetail().
-  // Jangan pasang listener submit kedua di modalBody agar update tidak terpanggil dua kali.
+  // Tombol simpan memakai event submit yang dipasang langsung ke form saat
+  // detail dibuka. Ini lebih andal daripada mengandalkan event click modal.
 }
 
 /* =====================================================
@@ -1072,7 +1072,7 @@ function openDetail(id) {
         ` : `<p class="photo-missing">Belum ada foto atau kolom foto_url masih kosong.</p>`}
       </div>
 
-      <form id="updateLaporanForm" class="detail-full" onsubmit="return false;">
+      <form id="updateLaporanForm" class="detail-full">
         <input type="hidden" name="id"
           value="${escapeHTML(getLaporanId(row))}">
 
@@ -1125,7 +1125,7 @@ function openDetail(id) {
           <button type="button" class="btn secondary" data-close>
             Tutup
           </button>
-          <button type="button" id="saveLaporanChangesBtn" class="btn primary">
+          <button type="submit" id="saveLaporanChangesBtn" class="btn primary">
             Simpan Perubahan
           </button>
         </div>
@@ -1133,11 +1133,11 @@ function openDetail(id) {
     </div>
   `;
 
-  // Tombol simpan memakai click handler langsung; tidak ada native POST ke GitHub Pages.
-  const updateForm = $("updateLaporanForm");
-  const saveButton = $("saveLaporanChangesBtn");
-  if (updateForm && saveButton) {
-    saveButton.addEventListener("click", handleSaveLaporanClick);
+  // Pasang listener langsung pada form yang baru dibuat. Setiap kali detail
+  // dibuka, form baru akan menerima listener submit yang benar.
+  const detailForm = $("updateLaporanForm");
+  if (detailForm) {
+    detailForm.addEventListener("submit", handleSaveLaporanSubmit);
   }
 
   if ($("detailModal")) $("detailModal").hidden = false;
@@ -1147,30 +1147,27 @@ function openDetail(id) {
    SIMPAN PERUBAHAN LAPORAN
 ===================================================== */
 
-function handleSaveLaporanClick(event) {
+function handleSaveLaporanSubmit(event) {
   event.preventDefault();
-  const form = event.currentTarget.closest("#updateLaporanForm");
-  if (!form) {
-    showToast("Form laporan tidak ditemukan. Tutup detail lalu buka kembali.", "error");
+  const form = event.currentTarget;
+  const button = form?.querySelector("#saveLaporanChangesBtn");
+
+  if (!form || form.id !== "updateLaporanForm") {
+    showToast("Form detail laporan tidak ditemukan. Tutup detail lalu buka kembali.", "error");
+    console.error("Submit simpan gagal: form detail laporan tidak ditemukan.");
     return;
   }
 
-  if (typeof form.reportValidity === "function" && !form.reportValidity()) {
-    return;
-  }
-
-  // Gunakan alur penyimpanan yang sama tanpa mengirim form sebagai POST.
-  void handleModalSubmit({
-    target: form,
-    preventDefault() {},
-    stopPropagation() {}
-  });
+  if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
+  console.info("Event submit Simpan Perubahan terdeteksi.");
+  void saveLaporanChanges(form, button);
 }
 
-async function handleModalSubmit(event) {
-  if (event.target.id !== "updateLaporanForm") return;
-  event.preventDefault();
-  event.stopPropagation();
+async function saveLaporanChanges(form, button) {
+  if (!form || form.id !== "updateLaporanForm") {
+    showToast("Form laporan tidak valid. Tutup detail lalu buka kembali.", "error");
+    return;
+  }
 
   if (!supabaseClient) {
     showToast("Koneksi Supabase belum siap. Muat ulang halaman.", "error");
@@ -1181,7 +1178,6 @@ async function handleModalSubmit(event) {
     return;
   }
 
-  const form = event.target;
   if (form.dataset.saving === "true") return;
 
   const formData = new FormData(form);
@@ -1201,7 +1197,6 @@ async function handleModalSubmit(event) {
     catatan_penugasan: String(formData.get("catatan_penugasan") || "").trim() || null
   };
 
-  const button = $("saveLaporanChangesBtn");
   const originalText = button?.textContent || "Simpan Perubahan";
   form.dataset.saving = "true";
   isSavingLaporan = true;
@@ -1220,15 +1215,18 @@ async function handleModalSubmit(event) {
       .select("*");
 
     if (updateError) {
-      const hint = updateError.code === "42501"
-        ? " Izin RLS UPDATE untuk akun admin kemungkinan belum diberikan."
-        : "";
-      throw new Error(`${updateError.message}${hint}`);
+      if (updateError.code === "42501" || /row-level security|permission denied/i.test(updateError.message || "")) {
+        throw new Error(`Database menolak perubahan karena izin RLS: ${updateError.message}. Pastikan akun admin memiliki policy UPDATE dan SELECT pada public.laporan.`);
+      }
+      if (updateError.code === "PGRST204" || /column .* does not exist|could not find the .* column/i.test(updateError.message || "")) {
+        throw new Error(`Nama kolom pada kode tidak cocok dengan tabel Supabase: ${updateError.message}. Periksa kolom petugas_id, tanggal_penugasan, tanggal_target, dan catatan_penugasan.`);
+      }
+      throw new Error(`Supabase gagal menyimpan perubahan (${updateError.code || "tanpa kode"}): ${updateError.message}`);
     }
 
     if (!updatedRows || updatedRows.length === 0) {
       throw new Error(
-        "Tidak ada baris laporan yang diperbarui. Periksa apakah policy SELECT dan UPDATE Supabase mengizinkan akun admin mengubah laporan ini."
+        "Supabase tidak mengembalikan baris yang diperbarui. Periksa izin SELECT/UPDATE (RLS) dan apakah ID laporan masih tersedia."
       );
     }
 
@@ -1237,14 +1235,12 @@ async function handleModalSubmit(event) {
       throw new Error(`Status yang terbaca setelah simpan adalah "${savedRow.status}", bukan "${newStatus}".`);
     }
 
-    // Ambil ulang data dari database agar tabel dan ringkasan memakai data terbaru.
     const { data: freshRows, error: refreshError } = await supabaseClient
       .from("laporan")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (refreshError) {
-      // Update sudah dikonfirmasi Supabase; tetap perbarui tampilan dari baris tersimpan.
       laporanData = laporanData.map((row) =>
         String(getLaporanId(row)) === id ? { ...row, ...savedRow } : row
       );
@@ -1253,10 +1249,7 @@ async function handleModalSubmit(event) {
       renderReports();
       renderPetugasFilter();
       if ($("detailModal")) $("detailModal").hidden = true;
-      showToast(
-        `Perubahan laporan #${id} tersimpan, tetapi daftar gagal dimuat ulang: ${refreshError.message}`,
-        "error"
-      );
+      showToast(`Perubahan tersimpan di database, tetapi daftar gagal dimuat ulang: ${refreshError.message}`, "error");
       return;
     }
 
@@ -1265,9 +1258,7 @@ async function handleModalSubmit(event) {
     renderReports();
     renderPetugasFilter();
 
-    const freshSelected = laporanData.find(
-      (row) => String(getLaporanId(row)) === id
-    );
+    const freshSelected = laporanData.find((row) => String(getLaporanId(row)) === id);
     if (freshSelected) selectedLaporan = freshSelected;
 
     if ($("detailModal")) $("detailModal").hidden = true;
@@ -1280,7 +1271,7 @@ async function handleModalSubmit(event) {
       hint: error?.hint,
       userId: currentUser?.id
     });
-    showToast(`Gagal menyimpan perubahan: ${error.message}`, "error");
+    showToast(`Gagal menyimpan perubahan: ${error?.message || "Kesalahan tidak diketahui"}`, "error");
   } finally {
     form.dataset.saving = "false";
     isSavingLaporan = false;

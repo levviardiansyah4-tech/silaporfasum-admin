@@ -1,35 +1,16 @@
-PERBAIKAN SiLaporFasum Admin — PENTING: FILE HARUS DI ROOT
+PERBAIKAN SiLaporFasum Admin v7
 
-ZIP ini sengaja menaruh index.html dan file pendukung langsung di root ZIP.
-Jangan mengunggah folder pembungkus ke repository. Setelah upload, `index.html`
-harus terlihat langsung pada tab Code, sejajar dengan `admin.js` dan file CSS.
-
-CARA PASANG
 1. Ekstrak ZIP.
-2. Unggah file index.html, admin.css, admin-petugas.css, admin.js, README.md,
-   serta SQL_PERBAIKAN_HAPUS.sql dan SQL_PERBAIKAN_REALTIME.sql langsung ke root repository GitHub.
-3. Commit ke branch main.
-4. Settings > Pages: Deploy from a branch, branch main, folder /(root).
-5. Tunggu deployment selesai. Gunakan URL yang ditampilkan pada Settings > Pages.
-6. Jika nama repository berakhir dengan titik, buka Settings > General dan ganti
-   nama menjadi `silaporfasum-admin`, lalu pakai URL baru yang ditampilkan Pages.
-7. Untuk pembaruan otomatis saat laporan baru masuk atau berubah dari aplikasi lain,
-   buka Supabase > SQL Editor lalu jalankan isi `SQL_PERBAIKAN_REALTIME.sql`.
-8. Hard refresh browser (Ctrl+Shift+R / Cmd+Shift+R).
+2. Unggah index.html, admin.js, admin.css, dan admin-petugas.css langsung ke root repository GitHub (jangan di dalam folder).
+3. Commit ke branch yang digunakan GitHub Pages dan tunggu deployment selesai.
+4. Buka URL GitHub Pages, lalu tekan Ctrl+Shift+R.
+5. Pastikan browser memuat admin.js?v=20261026-fix-simpan-v7 melalui DevTools > Network.
+6. Buka detail laporan, ubah status, lalu tekan Simpan Perubahan.
+7. Jika gagal, baca pesan merah yang muncul. Pesan tersebut sekarang akan menunjukkan apakah masalahnya izin RLS, nama kolom, ID laporan, atau koneksi.
 
-KONFIGURASI
-URL Supabase dan publishable key ada di bagian atas admin.js. File
-supabase-config.js tidak diperlukan karena index.html hanya memuat admin.js.
-Jangan pernah memasukkan service_role/secret key ke frontend.
-
-CATATAN FITUR
-Frontend menyediakan login, dashboard, laporan, filter, detail, update status,
-penugasan, petugas, foto, serta refresh otomatis laporan melalui Supabase Realtime.
-Izin database tetap harus benar di Supabase RLS.
-Jika login berhasil tetapi data tidak muncul/berubah, periksa pesan error Console
-dan policy SELECT/UPDATE/INSERT pada tabel terkait serta policy Storage.
-
-HAPUS LAPORAN
-SQL_PERBAIKAN_HAPUS.sql membatasi DELETE pada email `admin@gmail.com`.
-Sebelum menjalankan SQL, ganti email itu dengan email admin yang benar dan
-tinjau policy yang ada. Jangan membuka DELETE untuk anon/public.
+Catatan:
+- Tombol Simpan tidak membutuhkan SQL Realtime untuk menyimpan ke database.
+- Untuk memperbarui dashboard otomatis saat laporan berubah dari aplikasi lain, jalankan SQL_PERBAIKAN_REALTIME.sql di Supabase SQL Editor.
+- Pastikan akun admin memiliki policy SELECT dan UPDATE yang sesuai di tabel public.laporan.
+- Jangan pernah memasukkan service_role/secret key ke frontend.
+- SQL_PERBAIKAN_HAPUS.sql masih memakai email contoh admin@gmail.com. Jangan jalankan sebelum menggantinya dan memeriksa policy yang sudah ada.
