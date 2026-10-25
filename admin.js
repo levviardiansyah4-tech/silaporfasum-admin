@@ -1007,7 +1007,7 @@ function openDetail(id) {
         ` : `<p class="photo-missing">Belum ada foto atau kolom foto_url masih kosong.</p>`}
       </div>
 
-      <form id="updateLaporanForm" class="detail-full" onsubmit="return false;">
+     <form id="updateLaporanForm" class="detail-full" onsubmit="return false;">
         <input type="hidden" name="id"
           value="${escapeHTML(getLaporanId(row))}">
 
