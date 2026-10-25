@@ -1,36 +1,24 @@
-# SiLaporFasum Admin — Versi Tampilan Dashboard Baru
+# SiLaporFasum Admin
 
-Paket ini berisi pembaruan tampilan admin dengan fokus pada UI/UX:
-- desain dashboard lebih modern,
-- tambahan diagram/visual data pada dashboard dan halaman laporan,
-- ringkasan statistik petugas,
-- **tanpa mengubah alur fitur utama** seperti login, memuat data, filter, detail laporan, penugasan petugas, dan update status.
+Paket ini disusun agar file situs berada langsung di root repository GitHub Pages.
 
-## File yang diubah
-- `index.html`
-- `admin.css`
-- `admin.js`
+## Pasang di GitHub Pages
+1. Buka repository GitHub yang dipakai untuk situs admin.
+2. Masuk tab **Code**.
+3. Pastikan `index.html` terlihat langsung di daftar file utama (bukan di dalam folder tambahan).
+4. Unggah/ganti file dari ZIP ini langsung ke root repository: `index.html`, `admin.css`, `admin-petugas.css`, dan `admin.js`.
+5. Commit perubahan ke branch `main`.
+6. Di Settings → Pages, gunakan **Deploy from a branch**, branch `main`, folder `/(root)`.
+7. Tunggu deployment selesai lalu buka URL yang ditampilkan GitHub Pages. Jika nama repository masih `silaporfasum-admin.` (titik di akhir), sebaiknya ubah namanya menjadi `silaporfasum-admin` pada Settings → General lalu gunakan URL baru yang Pages tampilkan.
+8. Hard refresh: Ctrl+Shift+R (Windows) atau Cmd+Shift+R (Mac).
 
-## File yang dipertahankan
-- `admin-petugas.css`
-- `supabase-config.js`
+## Konfigurasi Supabase
+URL dan publishable key berada di bagian atas `admin.js`. Jangan masukkan `service_role` atau secret key ke website.
 
-## Fitur yang tetap sama
-- Login admin Supabase
-- Muat data laporan dan petugas
-- Filter dan pencarian laporan
-- Detail laporan + ubah status + penugasan petugas
-- Tambah/edit petugas
-- Toast notifikasi
+## Fitur
+Login Supabase Auth, dashboard laporan, pencarian/filter, detail laporan, update status, penugasan petugas, daftar petugas, serta foto laporan.
 
-## Catatan
-Diagram dibuat dengan HTML/CSS/JS murni, tanpa library eksternal, sehingga lebih ringan dan tidak mengubah mekanisme data yang sudah berjalan.
+## Jika fitur database gagal
+File frontend tidak dapat melewati Row Level Security (RLS). Pastikan akun login mempunyai policy yang sesuai untuk SELECT/UPDATE/INSERT pada tabel `public.laporan` dan `public.petugas`, serta policy Storage untuk membaca foto. Periksa Console/Network browser untuk pesan error yang spesifik.
 
-
-## Perbaikan status dan foto (diagnostik)
-
-- Simpan status sekarang memeriksa baris yang dikembalikan Supabase; jika nol baris atau ditolak RLS, pesan kesalahan ditampilkan.
-- Setelah simpan, data laporan dimuat ulang dari Supabase.
-- Resolver foto menerima URL penuh atau path relatif dalam bucket `foto-laporan`.
-
-Penting: kode frontend tidak dapat melewati Row Level Security. Jika muncul error permission/RLS, atur policy UPDATE secara aman untuk akun admin di Supabase. Jangan gunakan service-role key di browser.
+`SQL_PERBAIKAN_HAPUS.sql` adalah contoh policy DELETE yang membatasi akses pada email `admin@gmail.com`. Jangan jalankan sebelum mengganti email tersebut menjadi email admin yang benar dan meninjau policy yang sudah ada di project Anda.
