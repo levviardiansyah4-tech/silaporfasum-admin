@@ -1017,105 +1017,79 @@ function openDetail(id) {
 ===================================================== */
 
 async function handleModalSubmit(event) {
-  if (event.target.id !== "updateLaporanForm") return;
+  if (!event.target || event.target.id !== "updateLaporanForm") return;
   event.preventDefault();
-
-  if (!supabaseClient) {
-    showToast("Koneksi Supabase belum siap. Muat ulang halaman.", "error");
-    return;
-  }
-  if (!currentUser) {
-    showToast("Sesi admin tidak ditemukan. Silakan login kembali.", "error");
-    return;
-  }
+  event.stopPropagation();
 
   const form = event.target;
-  const formData = new FormData(form);
-  const id = String(formData.get("id") || "").trim();
-  const newStatus = String(formData.get("status") || "").trim();
-
-  if (!id || !newStatus) {
-    showToast("ID laporan atau status belum terisi.", "error");
+  if (!supabaseClient || !currentUser) {
+    showToast("Sesi/koneksi Supabase tidak siap. Login ulang lalu coba lagi.", "error");
     return;
   }
 
-  const updateData = {
-    status: newStatus,
-    petugas_id: formData.get("petugas_id") || null,
-    tanggal_penugasan: formData.get("tanggal_penugasan") || null,
-    tanggal_target: formData.get("tanggal_target") || null,
-    catatan_penugasan: formData.get("catatan_penugasan") || null
-  };
-
-  const button = form.querySelector("button[type='submit']");
-  const originalText = button?.textContent || "Simpan Perubahan";
-  if (button) {
-    button.disabled = true;
-    button.textContent = "Menyimpan...";
+  const fd = new FormData(form);
+  const id = String(fd.get("id") || "").trim();
+  const status = String(fd.get("status") || "").trim();
+  if (!id || !status) {
+    showToast("ID laporan atau status kosong.", "error");
+    return;
   }
 
+  const payload = {
+    status,
+    petugas_id: String(fd.get("petugas_id") || "").trim() || null,
+    tanggal_penugasan: String(fd.get("tanggal_penugasan") || "").trim() || null,
+    tanggal_target: String(fd.get("tanggal_target") || "").trim() || null,
+    catatan_penugasan: String(fd.get("catatan_penugasan") || "").trim() || null
+  };
+
+  const btn = form.querySelector('button[type="submit"]');
+  const oldLabel = btn?.textContent || "Simpan Perubahan";
+  if (btn) { btn.disabled = true; btn.textContent = "Menyimpan..."; }
+
   try {
-    // Update only the selected report, then request the saved row back.
-    const { data: updatedRows, error: updateError } = await supabaseClient
+    // Don't rely on client-side role labels. RLS must authorize this authenticated user.
+    const { data, error } = await supabaseClient
       .from("laporan")
-      .update(updateData)
+      .update(payload)
       .eq("id", id)
       .select("id,status,petugas_id,tanggal_penugasan,tanggal_target,catatan_penugasan");
 
-    if (updateError) {
-      const hint = updateError.code === "42501"
-        ? " Izin RLS UPDATE untuk akun admin kemungkinan belum diberikan."
-        : "";
-      throw new Error(`${updateError.message}${hint}`);
+    if (error) throw error;
+    if (!Array.isArray(data) || data.length !== 1) {
+      throw new Error("Tidak ada baris yang diperbarui. Pastikan policy RLS UPDATE dan SELECT mengizinkan akun admin, serta ID laporan benar.");
     }
 
-    if (!updatedRows || updatedRows.length === 0) {
-      throw new Error(
-        "Supabase tidak mengembalikan baris yang diperbarui. Periksa ID laporan serta kebijakan RLS UPDATE dan SELECT untuk akun admin."
-      );
+    // Verify by reading the saved record back from Supabase.
+    const { data: verify, error: verifyError } = await supabaseClient
+      .from("laporan")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (verifyError) throw verifyError;
+    if (!verify || verify.status !== status) {
+      throw new Error("Update belum terverifikasi. Status di database masih berbeda.");
     }
 
-    const savedRow = updatedRows[0];
-    if (String(savedRow.status) !== newStatus) {
-      throw new Error(`Status yang terbaca setelah simpan adalah "${savedRow.status}", bukan "${newStatus}".`);
-    }
-
-    // Re-fetch all rows so dashboard and list use the actual database state.
-    const { data: freshRows, error: refreshError } = await supabaseClient
+    const { data: allRows, error: listError } = await supabaseClient
       .from("laporan")
       .select("*")
       .order("created_at", { ascending: false });
+    if (listError) throw listError;
 
-    if (refreshError) {
-      throw new Error(`Status tersimpan, tetapi daftar belum bisa diperbarui: ${refreshError.message}`);
-    }
-
-    laporanData = freshRows || [];
+    laporanData = allRows || [];
+    selectedLaporan = laporanData.find(r => String(getLaporanId(r)) === id) || verify;
     renderDashboard();
     renderReports();
-
-    const freshSelected = laporanData.find(
-      (row) => String(getLaporanId(row)) === id
-    );
-    if (freshSelected) selectedLaporan = freshSelected;
-
     if ($("detailModal")) $("detailModal").hidden = true;
-    showToast(`Status berhasil disimpan: ${savedRow.status}`);
-    await loadData();
-  } catch (error) {
-    console.error("Update laporan gagal:", {
-      message: error?.message,
-      code: error?.code,
-      details: error?.details,
-      hint: error?.hint,
-      userId: currentUser?.id
+    showToast(`Status berhasil disimpan: ${verify.status}`);
+  } catch (err) {
+    console.error("Simpan laporan gagal", {
+      message: err?.message, code: err?.code, details: err?.details, hint: err?.hint
     });
-    showToast(`Gagal menyimpan perubahan: ${error.message}`, "error");
+    showToast(`Gagal menyimpan: ${err?.message || "Error tidak diketahui"}`, "error");
   } finally {
-    if (button) {
-      button.disabled = false;
-      button.textContent = originalText;
-    }
+    if (btn) { btn.disabled = false; btn.textContent = oldLabel; }
   }
 }
 
