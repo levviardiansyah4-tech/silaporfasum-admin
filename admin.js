@@ -1070,6 +1070,7 @@ function openDetail(id) {
   `;
 
   // Tombol simpan memakai click handler langsung; tidak ada native POST ke GitHub Pages.
+  const updateForm = $("updateLaporanForm");
   const saveButton = $("saveLaporanChangesBtn");
   if (updateForm && saveButton) {
     saveButton.addEventListener("click", handleSaveLaporanClick);
@@ -1131,7 +1132,7 @@ async function handleModalSubmit(event) {
     catatan_penugasan: formData.get("catatan_penugasan") || null
   };
 
-  const button = form.querySelector("button[type='submit']");
+  const button = form.querySelector("#saveLaporanChangesBtn, button[type='submit']");
   const originalText = button?.textContent || "Simpan Perubahan";
   form.dataset.saving = "true";
   if (button) {
