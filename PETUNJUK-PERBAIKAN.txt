@@ -1,12 +1,11 @@
-PERBAIKAN SiLaporFasum Admin v10
+PERBAIKAN SiLaporFasum Admin v17 — GPS + FORM UPDATE
 
-1. Ekstrak ZIP.
-2. Ganti index.html, admin.js, admin.css, dan admin-petugas.css di root repository GitHub Pages.
-3. Commit changes dan tunggu deployment selesai.
-4. Buka aplikasi admin lalu tekan Ctrl+Shift+R.
-5. Pastikan Console menampilkan “SiLaporFasum Admin JavaScript v10 loaded” dan Network memuat admin.js?v=20261026-fix-simpan-v10.
-6. Ubah status laporan dan klik Simpan Perubahan.
-7. Jika muncul error RLS, buka SQL_PERBAIKAN_UPDATE_LAPORAN.sql, ganti placeholder email dengan email login admin yang tepat, lalu jalankan di SQL Editor Supabase project yang benar.
-8. Logout-login kembali dan coba simpan lagi.
+1. Ganti index.html dan admin.js di root repository GitHub Pages dengan file versi ini.
+2. Commit/push perubahan dan tunggu GitHub Pages selesai deploy.
+3. Buka website admin, tekan Ctrl+Shift+R (hard refresh), lalu login kembali.
+4. Buka detail laporan. Bagian “Lokasi GPS dari pelapor” menampilkan koordinat dan tautan Google Maps jika kolom koordinat tersedia di tabel public.laporan.
+5. Jika muncul “Koordinat GPS belum tersedia”, website user harus menyimpan koordinat ke tabel public.laporan. Kode admin mendukung nama kolom: latitude/longitude, lat/lng, lokasi_lat/lokasi_lng, gps_latitude/gps_longitude, atau koordinat_lat/koordinat_lng.
+6. Tombol Simpan Perubahan kini mengambil form aktif dari modal detail untuk menghindari referensi form yang sudah lama.
+7. Update status tetap menggunakan RPC silapor_admin_update_status_v14. Pastikan SQL fungsi RPC yang sudah digunakan sebelumnya tetap terpasang pada proyek Supabase yang benar.
 
-Catatan: jangan jalankan SQL sebelum placeholder email diganti. Jangan pernah memasukkan service_role/secret key ke file frontend.
+Catatan: perubahan tampilan admin tidak dapat membuat koordinat muncul jika aplikasi user tidak menyimpan koordinat GPS ke database. Jangan memasukkan service_role/secret key ke frontend.

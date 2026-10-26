@@ -3,7 +3,7 @@
    Supabase + Dashboard + Laporan + Petugas
 ===================================================== */
 
-console.info("SiLaporFasum Admin JavaScript v16 loaded — robust form resolution enabled.");
+console.info("SiLaporFasum Admin JavaScript v17 loaded — robust form resolution enabled.");
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
@@ -107,7 +107,18 @@ function getKategori(row) {
 }
 
 function getLokasi(row) {
-  return getField(row, ["alamat"]);
+  return getField(row, ["alamat", "lokasi", "alamat_laporan"]);
+}
+
+// Mendukung beberapa nama kolom koordinat yang umum dipakai di database.
+function getGpsCoordinates(row) {
+  const lat = getField(row, ["latitude", "lat", "lokasi_lat", "gps_latitude", "koordinat_lat"], "");
+  const lng = getField(row, ["longitude", "lng", "lon", "lokasi_lng", "gps_longitude", "koordinat_lng"], "");
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  if (lat === "" || lng === "" || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+  return { latitude, longitude };
 }
 
 function getDeskripsi(row) {
@@ -1055,8 +1066,19 @@ function openDetail(id) {
       </div>
 
       <div class="detail-item detail-full">
-        <small>Lokasi</small>
+        <small>Alamat lokasi laporan</small>
         <strong>${escapeHTML(getLokasi(row))}</strong>
+      </div>
+
+      <div class="detail-item detail-full">
+        <small>Lokasi GPS dari pelapor</small>
+        ${(() => {
+          const gps = getGpsCoordinates(row);
+          return gps
+            ? `<strong>Latitude: ${gps.latitude}, Longitude: ${gps.longitude}</strong>
+               <a href="https://www.google.com/maps?q=${gps.latitude},${gps.longitude}" target="_blank" rel="noopener noreferrer">Buka titik GPS di Google Maps ↗</a>`
+            : `<p class="muted">Koordinat GPS belum tersedia pada data laporan. Pastikan aplikasi user menyimpan latitude dan longitude ke tabel laporan.</p>`;
+        })()}
       </div>
 
       <div class="detail-item detail-full">
@@ -1153,7 +1175,7 @@ function openDetail(id) {
         $("modalBody")?.querySelector("form#updateLaporanForm") ||
         document.getElementById("updateLaporanForm");
 
-      console.info("[SiLaporFasum v16] Klik tombol Simpan Perubahan terdeteksi", {
+      console.info("[SiLaporFasum v17] Klik tombol Simpan Perubahan terdeteksi", {
         buttonId: clickedButton?.id || null,
         formId: formForSave?.id || null,
         formTag: formForSave?.tagName || null,
@@ -1162,7 +1184,7 @@ function openDetail(id) {
       });
 
       if (!formForSave) {
-        console.error("[SiLaporFasum v16] Tidak dapat menemukan form update di dalam modal.", {
+        console.error("[SiLaporFasum v17] Tidak dapat menemukan form update di dalam modal.", {
           modalFound: Boolean($("modalBody")),
           buttonFound: Boolean(clickedButton),
           formIdLookupFound: Boolean(document.getElementById("updateLaporanForm"))
@@ -1172,7 +1194,7 @@ function openDetail(id) {
       }
 
       if (typeof formForSave.reportValidity === "function" && !formForSave.reportValidity()) {
-        console.warn("[SiLaporFasum v16] Validasi form belum terpenuhi.");
+        console.warn("[SiLaporFasum v17] Validasi form belum terpenuhi.");
         return;
       }
 
@@ -1182,12 +1204,12 @@ function openDetail(id) {
     // Mendukung submit dengan tombol Enter dari keyboard.
     detailForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      console.info("[SiLaporFasum v16] Submit form detail terdeteksi.");
+      console.info("[SiLaporFasum v17] Submit form detail terdeteksi.");
       if (typeof detailForm.reportValidity === "function" && !detailForm.reportValidity()) return;
       void saveLaporanChanges(detailForm, saveButton);
     });
   } else {
-    console.error("[SiLaporFasum v16] Form/tombol simpan tidak ditemukan setelah detail dirender.", {
+    console.error("[SiLaporFasum v17] Form/tombol simpan tidak ditemukan setelah detail dirender.", {
       formFound: Boolean(detailForm),
       buttonFound: Boolean(saveButton)
     });
@@ -1245,13 +1267,17 @@ async function saveLaporanChanges(form, button) {
   if (!resolvedForm && receivedButton?.closest) {
     resolvedForm = receivedButton.closest("form#updateLaporanForm");
   }
+  // Modal detail dirender dinamis. Utamakan form aktif yang ada di modal,
+  // bukan referensi elemen lama dari detail laporan sebelumnya.
+  const activeModalForm =
+    $("modalBody")?.querySelector("form#updateLaporanForm") ||
+    document.querySelector("#detailModal #updateLaporanForm");
+  if (activeModalForm) resolvedForm = activeModalForm;
   if (!resolvedForm) {
-    resolvedForm =
-      $("modalBody")?.querySelector("form#updateLaporanForm") ||
-      document.getElementById("updateLaporanForm");
+    resolvedForm = document.getElementById("updateLaporanForm");
   }
 
-  console.info("[SiLaporFasum v16] Resolusi form penyimpanan", {
+  console.info("[SiLaporFasum v17] Resolusi form penyimpanan", {
     receivedTag: receivedForm?.tagName || null,
     receivedId: receivedForm?.id || null,
     receivedButtonId: receivedButton?.id || null,
@@ -1260,7 +1286,7 @@ async function saveLaporanChanges(form, button) {
   });
 
   if (!resolvedForm || resolvedForm.tagName !== "FORM" || resolvedForm.id !== "updateLaporanForm") {
-    console.error("[SiLaporFasum v16] Form update tidak valid/tidak ditemukan.", {
+    console.error("[SiLaporFasum v17] Form update tidak valid/tidak ditemukan.", {
       modalFound: Boolean($("modalBody")),
       matchingFormFound: Boolean($("modalBody")?.querySelector("form#updateLaporanForm")),
       documentLookupFound: Boolean(document.getElementById("updateLaporanForm"))
@@ -1332,7 +1358,7 @@ async function saveLaporanChanges(form, button) {
 
   let statusSaved = false;
   try {
-    console.info("[SiLaporFasum v16] Memanggil RPC update status", {
+    console.info("[SiLaporFasum v17] Memanggil RPC update status", {
       id,
       newStatus,
       email: currentUser.email
@@ -1402,7 +1428,7 @@ async function saveLaporanChanges(form, button) {
       showToast(`Berhasil! Status laporan #${id} sudah tersimpan sebagai "${newStatus}" di database.`);
     }
   } catch (error) {
-    console.error("[SiLaporFasum v16] Update status gagal:", {
+    console.error("[SiLaporFasum v17] Update status gagal:", {
       message: error?.message,
       code: error?.code,
       details: error?.details,
