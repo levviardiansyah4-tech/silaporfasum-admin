@@ -3,7 +3,7 @@
    Supabase + Dashboard + Laporan + Petugas
 ===================================================== */
 
-console.info("SiLaporFasum Admin JavaScript v12 loaded — status saved and verified first.");
+console.info("SiLaporFasum Admin JavaScript v13 loaded — update row count and status verification enabled.");
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
@@ -1236,30 +1236,68 @@ async function saveLaporanChanges(form, button) {
       email: currentUser.email
     });
 
-    // Simpan status terlebih dahulu. Perubahan kolom penugasan tidak boleh
-    // menggagalkan perubahan status utama.
-    const { data: statusRows, error: statusError } = await supabaseClient
+    // Simpan status dengan count=exact agar kita tahu apakah ada baris
+    // yang benar-benar terkena UPDATE tanpa bergantung pada .select() di PATCH.
+    const { error: statusError, count: statusCount } = await supabaseClient
       .from("laporan")
-      .update({ status: newStatus })
-      .eq("id", id)
-      .select("id,status");
+      .update({ status: newStatus }, { count: "exact" })
+      .eq("id", id);
 
     if (statusError) {
+      const code = statusError.code || "tanpa kode";
+      const message = statusError.message || "Kesalahan tidak diketahui";
+      if (
+        code === "42501" ||
+        /permission denied|row-level security|violates row-level security/i.test(message)
+      ) {
+        throw new Error(
+          `Supabase menolak UPDATE (${code}): ${message}. Pastikan SQL_PERBAIKAN_STATUS_ADMIN_V13.sql sudah dijalankan pada proyek ytasgufassdscmxnjeyr dan akun admin@gmail.com sedang login.`
+        );
+      }
+      if (code === "23514") {
+        throw new Error(
+          `Status ditolak constraint database (${code}): ${message}. Gunakan salah satu status yang diizinkan: Laporan Dikirim, Diverifikasi, Sedang Diproses, atau Selesai Diperbaiki.`
+        );
+      }
+      throw new Error(`Status gagal disimpan ke public.laporan (${code}): ${message}`);
+    }
+
+    // Tidak ada baris yang berubah biasanya berarti ID tidak cocok atau
+    // policy UPDATE/RLS tidak mengizinkan baris tersebut.
+    if (statusCount === 0) {
       throw new Error(
-        `Status gagal disimpan ke public.laporan (${statusError.code || "tanpa kode"}): ${statusError.message}. Periksa policy UPDATE/SELECT dan hak akses tabel untuk authenticated.`
+        `Supabase tidak memperbarui baris apa pun untuk ID "${id}". Periksa apakah ID laporan ada dan policy UPDATE mengizinkan akun admin@gmail.com.`
       );
     }
-    if (!Array.isArray(statusRows) || statusRows.length === 0) {
+
+    // Request PATCH tidak error. Coba baca ulang status sebagai verifikasi.
+    // Jika SELECT ditolak, beri tahu bahwa update diterima tetapi belum
+    // dapat diverifikasi; jangan mengklaim gagal/sukses secara keliru.
+    const { data: savedStatusRow, error: verifyStatusError } = await supabaseClient
+      .from("laporan")
+      .select("id,status")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (verifyStatusError) {
+      statusSaved = statusCount === 1;
       throw new Error(
-        `Supabase tidak mengembalikan baris yang diperbarui untuk ID ${id}. Status belum dapat dikonfirmasi. Periksa ID laporan, policy SELECT/UPDATE, dan pastikan akun admin@gmail.com benar-benar sedang login.`
+        `Permintaan UPDATE diterima${statusCount === 1 ? " (1 baris terdampak)" : ""}, tetapi pembacaan ulang untuk verifikasi gagal (${verifyStatusError.code || "tanpa kode"}): ${verifyStatusError.message}. Periksa policy SELECT admin.`
       );
     }
-    const savedStatusRow = statusRows[0];
+
+    if (!savedStatusRow) {
+      throw new Error(
+        `UPDATE tidak mengembalikan error, tetapi laporan ID "${id}" tidak bisa dibaca ulang. Periksa policy SELECT admin dan ID laporan.`
+      );
+    }
+
     if (String(savedStatusRow.id) !== id || String(savedStatusRow.status) !== newStatus) {
       throw new Error(
-        `Verifikasi penyimpanan tidak cocok. ID: ${savedStatusRow.id}; status database: ${savedStatusRow.status}; status pilihan: ${newStatus}.`
+        `Status setelah update belum sesuai. ID: ${savedStatusRow.id}; status di database: "${savedStatusRow.status}"; status pilihan: "${newStatus}".`
       );
     }
+
     statusSaved = true;
 
     // Simpan data penugasan hanya bila nilainya memang berubah.
@@ -1318,9 +1356,12 @@ async function saveLaporanChanges(form, button) {
       email: currentUser?.email
     });
     if (statusSaved) {
-      showToast(`Status berhasil disimpan menjadi "${newStatus}", tetapi ada masalah saat menyimpan detail lain: ${error?.message || "kesalahan tidak diketahui"}`, "error");
+      showToast(
+        `Status laporan sudah diperbarui, tetapi proses lanjutan mengalami kendala: ${error?.message || "kesalahan tidak diketahui"}`,
+        "error"
+      );
     } else {
-      showToast(`Status belum berhasil disimpan: ${error?.message || "kesalahan tidak diketahui"}`, "error");
+      showToast(`Status belum dapat dikonfirmasi tersimpan: ${error?.message || "kesalahan tidak diketahui"}`, "error");
     }
   } finally {
     form.dataset.saving = "false";
