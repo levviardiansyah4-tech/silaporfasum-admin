@@ -1,39 +1,20 @@
-# SiLaporFasum Admin — Perbaikan Simpan Perubahan v8
+# SiLaporFasum Admin — Perbaikan Simpan v10
 
-Paket ini berisi perbaikan handler tombol **Simpan Perubahan**, pembaruan tampilan setelah Supabase mengonfirmasi perubahan, pesan error yang lebih jelas, dan cache-busting untuk mencegah browser memakai `admin.js` versi lama.
+Versi ini menambahkan pemeriksaan awal pada baris laporan dan pesan diagnostik yang lebih jelas untuk membedakan masalah ID/SELECT RLS dengan UPDATE RLS. Console juga mencatat email akun yang sedang login (jangan membagikan informasi sensitif selain yang diperlukan untuk diagnosis).
 
-## Pasang file di GitHub Pages
+## Pasang file frontend
+1. Ekstrak ZIP. File `index.html`, `admin.js`, `admin.css`, dan `admin-petugas.css` ada langsung di root ZIP.
+2. Unggah/ganti empat file tersebut di root repository GitHub Pages yang benar, lalu Commit changes.
+3. Tunggu deployment selesai, buka URL admin dan tekan `Ctrl+Shift+R`.
+4. Di DevTools → Network, pastikan browser memuat `admin.js?v=20261026-fix-simpan-v10`. Di Console harus muncul `SiLaporFasum Admin JavaScript v10 loaded`.
 
-1. Ekstrak ZIP.
-2. Unggah file `index.html`, `admin.js`, `admin.css`, dan `admin-petugas.css` langsung ke **root** repository (sejajar, bukan di dalam folder tambahan).
-3. Commit perubahan ke branch yang dipakai GitHub Pages.
-4. Pastikan Settings → Pages mengarah ke branch dan folder yang benar.
-5. Tunggu deployment selesai, buka URL Pages, lalu lakukan hard refresh (`Ctrl+Shift+R`).
-6. Pada browser, buka DevTools → Network, muat ulang halaman, dan pastikan file yang dimuat bernama `admin.js?v=20261026-fix-simpan-v8`.
+## Jika status tetap tidak berubah
+1. Tekan Simpan Perubahan dan baca toast merah. v10 akan menyebut apakah laporan tidak terlihat karena SELECT/RLS atau UPDATE tidak mengubah baris.
+2. Jika pesan menyebut policy RLS, buka `SQL_PERBAIKAN_UPDATE_LAPORAN.sql`.
+3. Ganti `EMAIL_ADMIN_ANDA@example.com` di dua bagian policy dengan email yang persis sama dengan akun yang digunakan untuk login ke aplikasi.
+4. Jalankan SQL itu di Supabase → SQL Editor pada project `ytasgufassdscmxnjeyr`.
+5. Logout lalu login kembali di aplikasi admin, buka laporan, ubah status, dan simpan.
 
-## Apa yang diperbaiki
+Jangan jalankan SQL dengan placeholder email yang belum diganti. Jangan pernah menaruh service_role/secret key di frontend. Script hanya memberi SELECT dan UPDATE kepada akun authenticated yang email JWT-nya cocok; policy lain yang sudah ada tetap perlu ditinjau bila kebijakan akses project lebih kompleks.
 
-- Tombol Simpan ditangani melalui event `submit` terdelegasi pada `#modalBody`; handler mengambil form dari `event.target`, bukan `event.currentTarget`.
-- Data status, petugas, tanggal penugasan, tanggal target, dan catatan dikirim ke tabel `public.laporan`.
-- Setelah database mengonfirmasi perubahan, daftar laporan dan ringkasan dashboard dimuat ulang.
-- Pesan error bertahan lebih lama agar dapat dibaca. Error RLS dan nama kolom yang tidak cocok diberi petunjuk khusus.
-- URL aset diberi versi untuk menghindari cache browser lama.
-
-## Jika tombol tetap gagal
-
-Tekan Simpan Perubahan lalu baca pesan merah yang muncul. Pesan itu menentukan langkah selanjutnya:
-
-- **RLS / permission denied / 42501**: akun admin belum memiliki policy `UPDATE` dan `SELECT` yang sesuai pada `public.laporan`.
-- **Kolom tidak ditemukan / PGRST204**: nama kolom pada kode berbeda dari skema tabel Supabase.
-- **Tidak ada baris yang diperbarui**: periksa policy RLS `SELECT`/`UPDATE`, ID laporan, dan apakah akun yang login benar.
-- **Tidak ada pesan sama sekali**: kemungkinan browser masih membuka deployment lama atau file `admin.js` terbaru belum berada di root repository. Periksa DevTools → Network dan Console.
-
-Perbaikan frontend tidak dapat melewati kebijakan keamanan database. Jangan pernah menaruh `service_role` atau secret key di file frontend.
-
-## Realtime
-
-Tombol Simpan tetap dapat bekerja tanpa Realtime. Agar perubahan yang dibuat dari aplikasi lain otomatis muncul di dashboard admin, jalankan `SQL_PERBAIKAN_REALTIME.sql` pada SQL Editor Supabase project yang sama.
-
-## Catatan file DELETE
-
-`SQL_PERBAIKAN_HAPUS.sql` adalah contoh policy DELETE yang membatasi email `admin@gmail.com`. Jangan jalankan sebelum mengganti email itu dengan email admin yang benar dan meninjau policy yang sudah ada.
+`SQL_PERBAIKAN_REALTIME.sql` hanya untuk pembaruan realtime, bukan syarat tombol Simpan. `SQL_PERBAIKAN_HAPUS.sql` terpisah untuk fitur hapus.

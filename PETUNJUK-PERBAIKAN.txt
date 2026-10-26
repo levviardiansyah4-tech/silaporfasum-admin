@@ -1,16 +1,12 @@
-PERBAIKAN SiLaporFasum Admin v7
+PERBAIKAN SiLaporFasum Admin v10
 
 1. Ekstrak ZIP.
-2. Unggah index.html, admin.js, admin.css, dan admin-petugas.css langsung ke root repository GitHub (jangan di dalam folder).
-3. Commit ke branch yang digunakan GitHub Pages dan tunggu deployment selesai.
-4. Buka URL GitHub Pages, lalu tekan Ctrl+Shift+R.
-5. Pastikan browser memuat admin.js?v=20261026-fix-simpan-v8 melalui DevTools > Network.
-6. Buka detail laporan, ubah status, lalu tekan Simpan Perubahan.
-7. Jika gagal, baca pesan merah yang muncul. Pesan tersebut sekarang akan menunjukkan apakah masalahnya izin RLS, nama kolom, ID laporan, atau koneksi.
+2. Ganti index.html, admin.js, admin.css, dan admin-petugas.css di root repository GitHub Pages.
+3. Commit changes dan tunggu deployment selesai.
+4. Buka aplikasi admin lalu tekan Ctrl+Shift+R.
+5. Pastikan Console menampilkan “SiLaporFasum Admin JavaScript v10 loaded” dan Network memuat admin.js?v=20261026-fix-simpan-v10.
+6. Ubah status laporan dan klik Simpan Perubahan.
+7. Jika muncul error RLS, buka SQL_PERBAIKAN_UPDATE_LAPORAN.sql, ganti placeholder email dengan email login admin yang tepat, lalu jalankan di SQL Editor Supabase project yang benar.
+8. Logout-login kembali dan coba simpan lagi.
 
-Catatan:
-- Tombol Simpan tidak membutuhkan SQL Realtime untuk menyimpan ke database.
-- Untuk memperbarui dashboard otomatis saat laporan berubah dari aplikasi lain, jalankan SQL_PERBAIKAN_REALTIME.sql di Supabase SQL Editor.
-- Pastikan akun admin memiliki policy SELECT dan UPDATE yang sesuai di tabel public.laporan.
-- Jangan pernah memasukkan service_role/secret key ke frontend.
-- SQL_PERBAIKAN_HAPUS.sql masih memakai email contoh admin@gmail.com. Jangan jalankan sebelum menggantinya dan memeriksa policy yang sudah ada.
+Catatan: jangan jalankan SQL sebelum placeholder email diganti. Jangan pernah memasukkan service_role/secret key ke file frontend.

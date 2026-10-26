@@ -3,6 +3,8 @@
    Supabase + Dashboard + Laporan + Petugas
 ===================================================== */
 
+console.info("SiLaporFasum Admin JavaScript v10 loaded — submit handler uses delegated form events.");
+
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
 
@@ -1208,7 +1210,38 @@ async function saveLaporanChanges(form, button) {
   }
 
   try {
-    console.info("Menyimpan perubahan laporan ke Supabase", { id, updateData });
+    console.info("Memulai penyimpanan laporan", {
+      id,
+      requestedStatus: newStatus,
+      loggedInEmail: currentUser?.email || "email tidak tersedia",
+      updateData
+    });
+
+    // Periksa apakah akun admin dapat melihat baris yang hendak diubah.
+    // Jika RLS menyembunyikan baris, tampilkan petunjuk yang spesifik sebelum UPDATE.
+    const { data: existingRow, error: preflightError } = await supabaseClient
+      .from("laporan")
+      .select("id,status")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (preflightError) {
+      throw new Error(
+        `Tidak bisa memeriksa laporan sebelum disimpan (${preflightError.code || "tanpa kode"}): ${preflightError.message}. Periksa izin SELECT/RLS pada public.laporan.`
+      );
+    }
+
+    if (!existingRow) {
+      throw new Error(
+        `Laporan dengan ID ${id} tidak ditemukan atau disembunyikan oleh policy SELECT RLS. Email admin yang sedang login: ${currentUser?.email || "tidak tersedia"}. Periksa ID laporan dan policy SELECT pada public.laporan.`
+      );
+    }
+
+    console.info("Baris laporan ditemukan; mengirim UPDATE", {
+      id,
+      oldStatus: existingRow.status,
+      newStatus
+    });
 
     const { data: updatedRows, error: updateError } = await supabaseClient
       .from("laporan")
@@ -1228,7 +1261,7 @@ async function saveLaporanChanges(form, button) {
 
     if (!updatedRows || updatedRows.length === 0) {
       throw new Error(
-        "Supabase tidak mengembalikan baris yang diperbarui. Periksa izin SELECT/UPDATE (RLS) dan apakah ID laporan masih tersedia."
+        `UPDATE tidak mengubah baris apa pun. Penyebab yang paling sering adalah policy UPDATE RLS belum mengizinkan akun ini atau email policy tidak cocok. Email admin yang sedang login: ${currentUser?.email || "tidak tersedia"}. Periksa policy SELECT dan UPDATE pada public.laporan.`
       );
     }
 
