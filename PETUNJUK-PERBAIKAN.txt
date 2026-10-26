@@ -4,7 +4,7 @@ PERBAIKAN SiLaporFasum Admin v7
 2. Unggah index.html, admin.js, admin.css, dan admin-petugas.css langsung ke root repository GitHub (jangan di dalam folder).
 3. Commit ke branch yang digunakan GitHub Pages dan tunggu deployment selesai.
 4. Buka URL GitHub Pages, lalu tekan Ctrl+Shift+R.
-5. Pastikan browser memuat admin.js?v=20261026-fix-simpan-v7 melalui DevTools > Network.
+5. Pastikan browser memuat admin.js?v=20261026-fix-simpan-v8 melalui DevTools > Network.
 6. Buka detail laporan, ubah status, lalu tekan Simpan Perubahan.
 7. Jika gagal, baca pesan merah yang muncul. Pesan tersebut sekarang akan menunjukkan apakah masalahnya izin RLS, nama kolom, ID laporan, atau koneksi.
 

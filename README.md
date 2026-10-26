@@ -1,4 +1,4 @@
-# SiLaporFasum Admin — Perbaikan Simpan Perubahan v7
+# SiLaporFasum Admin — Perbaikan Simpan Perubahan v8
 
 Paket ini berisi perbaikan handler tombol **Simpan Perubahan**, pembaruan tampilan setelah Supabase mengonfirmasi perubahan, pesan error yang lebih jelas, dan cache-busting untuk mencegah browser memakai `admin.js` versi lama.
 
@@ -9,11 +9,11 @@ Paket ini berisi perbaikan handler tombol **Simpan Perubahan**, pembaruan tampil
 3. Commit perubahan ke branch yang dipakai GitHub Pages.
 4. Pastikan Settings → Pages mengarah ke branch dan folder yang benar.
 5. Tunggu deployment selesai, buka URL Pages, lalu lakukan hard refresh (`Ctrl+Shift+R`).
-6. Pada browser, buka DevTools → Network, muat ulang halaman, dan pastikan file yang dimuat bernama `admin.js?v=20261026-fix-simpan-v7`.
+6. Pada browser, buka DevTools → Network, muat ulang halaman, dan pastikan file yang dimuat bernama `admin.js?v=20261026-fix-simpan-v8`.
 
 ## Apa yang diperbaiki
 
-- Tombol Simpan memakai event `submit` yang dipasang langsung pada form detail setiap kali detail dibuka, bukan event klik yang didelegasikan ke wadah modal.
+- Tombol Simpan ditangani melalui event `submit` terdelegasi pada `#modalBody`; handler mengambil form dari `event.target`, bukan `event.currentTarget`.
 - Data status, petugas, tanggal penugasan, tanggal target, dan catatan dikirim ke tabel `public.laporan`.
 - Setelah database mengonfirmasi perubahan, daftar laporan dan ringkasan dashboard dimuat ulang.
 - Pesan error bertahan lebih lama agar dapat dibaca. Error RLS dan nama kolom yang tidak cocok diberi petunjuk khusus.

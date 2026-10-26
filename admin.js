@@ -444,8 +444,10 @@ function bindEvents() {
   $("petugasTable")?.addEventListener("click", handlePetugasTableClick);
 
   $("modalBody")?.addEventListener("click", handleModalClick);
-  // Tombol simpan memakai event submit yang dipasang langsung ke form saat
-  // detail dibuka. Ini lebih andal daripada mengandalkan event click modal.
+
+  // Submit form detail ditangani secara delegasi karena form dibuat dinamis
+  // setiap kali modal detail laporan dibuka.
+  $("modalBody")?.addEventListener("submit", handleSaveLaporanSubmit);
 }
 
 /* =====================================================
@@ -1133,13 +1135,6 @@ function openDetail(id) {
     </div>
   `;
 
-  // Pasang listener langsung pada form yang baru dibuat. Setiap kali detail
-  // dibuka, form baru akan menerima listener submit yang benar.
-  const detailForm = $("updateLaporanForm");
-  if (detailForm) {
-    detailForm.addEventListener("submit", handleSaveLaporanSubmit);
-  }
-
   if ($("detailModal")) $("detailModal").hidden = false;
 }
 
@@ -1148,18 +1143,25 @@ function openDetail(id) {
 ===================================================== */
 
 function handleSaveLaporanSubmit(event) {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const button = form?.querySelector("#saveLaporanChangesBtn");
+  // Listener dipasang pada #modalBody, sehingga currentTarget adalah wadah,
+  // bukan form. Ambil form dari target event submit yang sebenarnya.
+  const form = event.target?.id === "updateLaporanForm"
+    ? event.target
+    : event.target?.closest?.("#updateLaporanForm");
 
-  if (!form || form.id !== "updateLaporanForm") {
-    showToast("Form detail laporan tidak ditemukan. Tutup detail lalu buka kembali.", "error");
-    console.error("Submit simpan gagal: form detail laporan tidak ditemukan.");
-    return;
-  }
+  // Abaikan submit dari elemen lain; jangan menampilkan pesan keliru.
+  if (!form || form.id !== "updateLaporanForm") return;
+
+  event.preventDefault();
+
+  const button = form.querySelector("#saveLaporanChangesBtn");
 
   if (typeof form.reportValidity === "function" && !form.reportValidity()) return;
-  console.info("Event submit Simpan Perubahan terdeteksi.");
+
+  console.info("Event submit Simpan Perubahan terdeteksi.", {
+    formId: form.id,
+    reportId: form.querySelector('input[name="id"]')?.value
+  });
   void saveLaporanChanges(form, button);
 }
 
