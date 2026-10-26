@@ -3,7 +3,7 @@
    Supabase + Dashboard + Laporan + Petugas
 ===================================================== */
 
-console.info("SiLaporFasum Admin JavaScript v15 loaded — direct save-button handler enabled.");
+console.info("SiLaporFasum Admin JavaScript v16 loaded — robust form resolution enabled.");
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
@@ -1144,28 +1144,50 @@ function openDetail(id) {
   if (detailForm && saveButton) {
     saveButton.addEventListener("click", (event) => {
       event.preventDefault();
-      console.info("[SiLaporFasum v15] Klik tombol Simpan Perubahan terdeteksi", {
-        id: detailForm.querySelector('input[name="id"]')?.value,
-        status: detailForm.querySelector('select[name="status"]')?.value
+
+      // Resolve from the actual clicked button, not a possibly stale closure.
+      const clickedButton = event.currentTarget;
+      const formForSave =
+        clickedButton?.form ||
+        clickedButton?.closest?.("form#updateLaporanForm") ||
+        $("modalBody")?.querySelector("form#updateLaporanForm") ||
+        document.getElementById("updateLaporanForm");
+
+      console.info("[SiLaporFasum v16] Klik tombol Simpan Perubahan terdeteksi", {
+        buttonId: clickedButton?.id || null,
+        formId: formForSave?.id || null,
+        formTag: formForSave?.tagName || null,
+        id: formForSave?.querySelector('input[name="id"]')?.value || null,
+        status: formForSave?.querySelector('select[name="status"]')?.value || null
       });
 
-      if (typeof detailForm.reportValidity === "function" && !detailForm.reportValidity()) {
-        console.warn("[SiLaporFasum v15] Validasi form belum terpenuhi.");
+      if (!formForSave) {
+        console.error("[SiLaporFasum v16] Tidak dapat menemukan form update di dalam modal.", {
+          modalFound: Boolean($("modalBody")),
+          buttonFound: Boolean(clickedButton),
+          formIdLookupFound: Boolean(document.getElementById("updateLaporanForm"))
+        });
+        showToast("Form update tidak ditemukan di modal. Tutup detail, buka lagi, lalu coba kembali.", "error");
         return;
       }
 
-      void saveLaporanChanges(detailForm, saveButton);
+      if (typeof formForSave.reportValidity === "function" && !formForSave.reportValidity()) {
+        console.warn("[SiLaporFasum v16] Validasi form belum terpenuhi.");
+        return;
+      }
+
+      void saveLaporanChanges(formForSave, clickedButton);
     });
 
     // Mendukung submit dengan tombol Enter dari keyboard.
     detailForm.addEventListener("submit", (event) => {
       event.preventDefault();
-      console.info("[SiLaporFasum v15] Submit form detail terdeteksi.");
+      console.info("[SiLaporFasum v16] Submit form detail terdeteksi.");
       if (typeof detailForm.reportValidity === "function" && !detailForm.reportValidity()) return;
       void saveLaporanChanges(detailForm, saveButton);
     });
   } else {
-    console.error("[SiLaporFasum v15] Form/tombol simpan tidak ditemukan setelah detail dirender.", {
+    console.error("[SiLaporFasum v16] Form/tombol simpan tidak ditemukan setelah detail dirender.", {
       formFound: Boolean(detailForm),
       buttonFound: Boolean(saveButton)
     });
@@ -1202,10 +1224,55 @@ function handleSaveLaporanSubmit(event) {
 }
 
 async function saveLaporanChanges(form, button) {
-  if (!form || form.id !== "updateLaporanForm") {
-    showToast("Form laporan tidak valid. Tutup detail lalu buka kembali.", "error");
+  const receivedForm = form;
+  const receivedButton = button;
+
+  // Accept a form, a button inside the form, or another element inside the form.
+  // This prevents a false "form tidak valid" when the event source is an element
+  // rather than the form object itself.
+  let resolvedForm = null;
+  if (receivedForm?.tagName === "FORM" && receivedForm.id === "updateLaporanForm") {
+    resolvedForm = receivedForm;
+  } else if (receivedForm?.form?.id === "updateLaporanForm") {
+    resolvedForm = receivedForm.form;
+  } else if (receivedForm?.closest) {
+    resolvedForm = receivedForm.closest("form#updateLaporanForm");
+  }
+
+  if (!resolvedForm && receivedButton?.form?.id === "updateLaporanForm") {
+    resolvedForm = receivedButton.form;
+  }
+  if (!resolvedForm && receivedButton?.closest) {
+    resolvedForm = receivedButton.closest("form#updateLaporanForm");
+  }
+  if (!resolvedForm) {
+    resolvedForm =
+      $("modalBody")?.querySelector("form#updateLaporanForm") ||
+      document.getElementById("updateLaporanForm");
+  }
+
+  console.info("[SiLaporFasum v16] Resolusi form penyimpanan", {
+    receivedTag: receivedForm?.tagName || null,
+    receivedId: receivedForm?.id || null,
+    receivedButtonId: receivedButton?.id || null,
+    resolvedTag: resolvedForm?.tagName || null,
+    resolvedId: resolvedForm?.id || null
+  });
+
+  if (!resolvedForm || resolvedForm.tagName !== "FORM" || resolvedForm.id !== "updateLaporanForm") {
+    console.error("[SiLaporFasum v16] Form update tidak valid/tidak ditemukan.", {
+      modalFound: Boolean($("modalBody")),
+      matchingFormFound: Boolean($("modalBody")?.querySelector("form#updateLaporanForm")),
+      documentLookupFound: Boolean(document.getElementById("updateLaporanForm"))
+    });
+    showToast("Form update laporan tidak ditemukan. Tutup detail, buka kembali laporan, lalu coba lagi.", "error");
     return;
   }
+
+  form = resolvedForm;
+  button = receivedButton?.id === "saveLaporanChangesBtn"
+    ? receivedButton
+    : form.querySelector("#saveLaporanChangesBtn");
   if (!supabaseClient) {
     showToast("Koneksi Supabase belum siap. Muat ulang halaman.", "error");
     return;
@@ -1265,7 +1332,7 @@ async function saveLaporanChanges(form, button) {
 
   let statusSaved = false;
   try {
-    console.info("[SiLaporFasum v15] Memanggil RPC update status", {
+    console.info("[SiLaporFasum v16] Memanggil RPC update status", {
       id,
       newStatus,
       email: currentUser.email
@@ -1335,7 +1402,7 @@ async function saveLaporanChanges(form, button) {
       showToast(`Berhasil! Status laporan #${id} sudah tersimpan sebagai "${newStatus}" di database.`);
     }
   } catch (error) {
-    console.error("[SiLaporFasum v15] Update status gagal:", {
+    console.error("[SiLaporFasum v16] Update status gagal:", {
       message: error?.message,
       code: error?.code,
       details: error?.details,
