@@ -3,7 +3,7 @@
    Supabase + Dashboard + Laporan + Petugas
 ===================================================== */
 
-console.info("SiLaporFasum Admin JavaScript v14 loaded — status saved through verified RPC.");
+console.info("SiLaporFasum Admin JavaScript v15 loaded — direct save-button handler enabled.");
 
 const SUPABASE_URL = "https://ytasgufassdscmxnjeyr.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NJw5OMlXyxk6MY5vb3eovw_LMsuclg2";
@@ -447,9 +447,8 @@ function bindEvents() {
 
   $("modalBody")?.addEventListener("click", handleModalClick);
 
-  // Submit form detail ditangani secara delegasi karena form dibuat dinamis
-  // setiap kali modal detail laporan dibuka.
-  $("modalBody")?.addEventListener("submit", handleSaveLaporanSubmit);
+  // Tombol Simpan dipasang langsung saat form detail dibuat di openDetail().
+  // Ini menghindari kegagalan event submit pada form dinamis.
 }
 
 /* =====================================================
@@ -1129,13 +1128,48 @@ function openDetail(id) {
           <button type="button" class="btn secondary" data-close>
             Tutup
           </button>
-          <button type="submit" id="saveLaporanChangesBtn" class="btn primary">
+          <button type="button" id="saveLaporanChangesBtn" class="btn primary">
             Simpan Perubahan
           </button>
         </div>
       </form>
     </div>
   `;
+
+  // Ikat event langsung ke elemen form dan tombol yang baru dibuat.
+  // Tombol menggunakan type="button", jadi satu klik hanya memanggil satu update.
+  const detailForm = $("updateLaporanForm");
+  const saveButton = $("saveLaporanChangesBtn");
+
+  if (detailForm && saveButton) {
+    saveButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      console.info("[SiLaporFasum v15] Klik tombol Simpan Perubahan terdeteksi", {
+        id: detailForm.querySelector('input[name="id"]')?.value,
+        status: detailForm.querySelector('select[name="status"]')?.value
+      });
+
+      if (typeof detailForm.reportValidity === "function" && !detailForm.reportValidity()) {
+        console.warn("[SiLaporFasum v15] Validasi form belum terpenuhi.");
+        return;
+      }
+
+      void saveLaporanChanges(detailForm, saveButton);
+    });
+
+    // Mendukung submit dengan tombol Enter dari keyboard.
+    detailForm.addEventListener("submit", (event) => {
+      event.preventDefault();
+      console.info("[SiLaporFasum v15] Submit form detail terdeteksi.");
+      if (typeof detailForm.reportValidity === "function" && !detailForm.reportValidity()) return;
+      void saveLaporanChanges(detailForm, saveButton);
+    });
+  } else {
+    console.error("[SiLaporFasum v15] Form/tombol simpan tidak ditemukan setelah detail dirender.", {
+      formFound: Boolean(detailForm),
+      buttonFound: Boolean(saveButton)
+    });
+  }
 
   if ($("detailModal")) $("detailModal").hidden = false;
 }
@@ -1231,7 +1265,7 @@ async function saveLaporanChanges(form, button) {
 
   let statusSaved = false;
   try {
-    console.info("[SiLaporFasum v14] Memanggil RPC update status", {
+    console.info("[SiLaporFasum v15] Memanggil RPC update status", {
       id,
       newStatus,
       email: currentUser.email
@@ -1301,7 +1335,7 @@ async function saveLaporanChanges(form, button) {
       showToast(`Berhasil! Status laporan #${id} sudah tersimpan sebagai "${newStatus}" di database.`);
     }
   } catch (error) {
-    console.error("[SiLaporFasum v14] Update status gagal:", {
+    console.error("[SiLaporFasum v15] Update status gagal:", {
       message: error?.message,
       code: error?.code,
       details: error?.details,
