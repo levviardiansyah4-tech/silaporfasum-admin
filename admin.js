@@ -1169,11 +1169,13 @@ function openDetail(id) {
 
       // Resolve from the actual clicked button, not a possibly stale closure.
       const clickedButton = event.currentTarget;
+      // Resolve the form from the exact modal containing the clicked button.
+      // This avoids stale/global ID lookups when the detail modal is re-rendered.
+      const owningModal = clickedButton?.closest?.(".modal-card") || clickedButton?.closest?.(".modal");
       const formForSave =
-        clickedButton?.form ||
         clickedButton?.closest?.("form#updateLaporanForm") ||
-        $("modalBody")?.querySelector("form#updateLaporanForm") ||
-        document.getElementById("updateLaporanForm");
+        owningModal?.querySelector?.("form#updateLaporanForm") ||
+        $("modalBody")?.querySelector?.("form#updateLaporanForm");
 
       console.info("[SiLaporFasum v17] Klik tombol Simpan Perubahan terdeteksi", {
         buttonId: clickedButton?.id || null,
@@ -1249,49 +1251,39 @@ async function saveLaporanChanges(form, button) {
   const receivedForm = form;
   const receivedButton = button;
 
-  // Accept a form, a button inside the form, or another element inside the form.
-  // This prevents a false "form tidak valid" when the event source is an element
-  // rather than the form object itself.
-  let resolvedForm = null;
-  if (receivedForm?.tagName === "FORM" && receivedForm.id === "updateLaporanForm") {
-    resolvedForm = receivedForm;
-  } else if (receivedForm?.form?.id === "updateLaporanForm") {
-    resolvedForm = receivedForm.form;
-  } else if (receivedForm?.closest) {
-    resolvedForm = receivedForm.closest("form#updateLaporanForm");
-  }
-
-  if (!resolvedForm && receivedButton?.form?.id === "updateLaporanForm") {
-    resolvedForm = receivedButton.form;
-  }
-  if (!resolvedForm && receivedButton?.closest) {
-    resolvedForm = receivedButton.closest("form#updateLaporanForm");
-  }
-  // Modal detail dirender dinamis. Utamakan form aktif yang ada di modal,
-  // bukan referensi elemen lama dari detail laporan sebelumnya.
+  // Prefer the exact form passed by the click handler. Only fall back to
+  // the form inside the modal that is currently visible.
+  const activeModal = document.querySelector("#detailModal:not([hidden])");
   const activeModalForm =
-    $("modalBody")?.querySelector("form#updateLaporanForm") ||
-    document.querySelector("#detailModal #updateLaporanForm");
-  if (activeModalForm) resolvedForm = activeModalForm;
-  if (!resolvedForm) {
-    resolvedForm = document.getElementById("updateLaporanForm");
+    activeModal?.querySelector("form#updateLaporanForm") ||
+    $("modalBody")?.querySelector("form#updateLaporanForm");
+  let resolvedForm = null;
+
+  if (receivedForm?.tagName === "FORM" && receivedForm.querySelector('input[name="id"]')) {
+    resolvedForm = receivedForm;
+  } else if (receivedButton?.closest?.("form#updateLaporanForm")) {
+    resolvedForm = receivedButton.closest("form#updateLaporanForm");
+  } else if (activeModalForm) {
+    resolvedForm = activeModalForm;
   }
 
-  console.info("[SiLaporFasum v17] Resolusi form penyimpanan", {
+  console.info("[SiLaporFasum v18] Resolusi form penyimpanan", {
     receivedTag: receivedForm?.tagName || null,
     receivedId: receivedForm?.id || null,
     receivedButtonId: receivedButton?.id || null,
     resolvedTag: resolvedForm?.tagName || null,
-    resolvedId: resolvedForm?.id || null
+    resolvedId: resolvedForm?.id || null,
+    modalVisible: Boolean(activeModal)
   });
 
-  if (!resolvedForm || resolvedForm.tagName !== "FORM" || resolvedForm.id !== "updateLaporanForm") {
-    console.error("[SiLaporFasum v17] Form update tidak valid/tidak ditemukan.", {
-      modalFound: Boolean($("modalBody")),
-      matchingFormFound: Boolean($("modalBody")?.querySelector("form#updateLaporanForm")),
-      documentLookupFound: Boolean(document.getElementById("updateLaporanForm"))
+  if (!resolvedForm || resolvedForm.tagName !== "FORM" || !resolvedForm.querySelector('input[name="id"]')) {
+    console.error("[SiLaporFasum v18] Form update tidak ditemukan pada modal aktif.", {
+      modalFound: Boolean(activeModal),
+      modalBodyFound: Boolean($("modalBody")),
+      formFound: Boolean(activeModalForm),
+      receivedTag: receivedForm?.tagName || null
     });
-    showToast("Form update laporan tidak ditemukan. Tutup detail, buka kembali laporan, lalu coba lagi.", "error");
+    showToast("Form update tidak ditemukan pada detail laporan. Muat ulang website admin (Ctrl + Shift + R), lalu buka kembali laporan.", "error");
     return;
   }
 
