@@ -314,3 +314,53 @@ tbody tr:hover{background:#fbfdff}
   border: 0;
   box-shadow: none;
 }
+
+/* Penyempurnaan ukuran logo SiLaporFasum saja */
+.login-card .logo {
+  width: 190px;
+  height: 150px;
+  margin: 0 auto 18px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.login-card .logo img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center;
+}
+.sidebar .brand {
+  gap: 9px;
+  align-items: center;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.sidebar .brand-logo {
+  flex: 0 0 62px;
+  width: 62px;
+  height: 58px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: hidden;
+}
+.sidebar .brand-logo img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center;
+}
+.welcome-mark img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  border-radius: inherit;
+}
+@media (max-width: 480px) {
+  .login-card .logo { width: 165px; height: 130px; }
+  .sidebar .brand-logo { flex-basis: 54px; width: 54px; height: 52px; }
+}
